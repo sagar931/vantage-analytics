@@ -5,7 +5,7 @@ import { getCellStyle } from '../utils/logicEngine';
 import RuleBuilder from './RuleBuilder'; 
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
-  ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2 
+  ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, Check, Edit3 
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -55,13 +55,11 @@ const ModelDetail = () => {
     setSheetData(parseSheetData(workbookData.workbook, sheetName));
   };
 
-  // NEW: Navigate Sheets in Presentation Mode
   const navigateSheet = (direction) => {
     if (!workbookData || !activeSheet) return;
     const currentIndex = workbookData.sheetNames.indexOf(activeSheet);
     let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
-    // Loop around or stop? Let's stop at edges.
     if (newIndex >= 0 && newIndex < workbookData.sheetNames.length) {
       handleSheetSwitch(workbookData.sheetNames[newIndex]);
     }
@@ -71,7 +69,7 @@ const ModelDetail = () => {
     if (!isPresentationMode) {
       setIsPresentationMode(true);
       setIsSidebarCollapsed(true);
-      setZoomLevel(110); // Auto-zoom slightly for impact
+      setZoomLevel(110);
     } else {
       setIsPresentationMode(false);
       setIsSidebarCollapsed(false);
@@ -158,109 +156,104 @@ const ModelDetail = () => {
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full relative bg-slate-950 transition-all duration-500">
         
-        {/* TOP NAV BAR */}
-        <div 
-          className={clsx(
-            "bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500 overflow-hidden",
-            isPresentationMode ? "h-0 opacity-0 border-0" : "h-16 opacity-100"
-          )}
-        >
-           <div className="flex items-center gap-2 text-sm text-slate-400">
-              <span>Fraud Analytics</span>
-              <span className="text-slate-600">/</span>
-              <span className="text-white font-medium">{selectedModel.name}</span>
-              {activeFile && (
-                <>
-                  <span className="text-slate-600">/</span>
-                  <span className="text-blue-400">{activeFile.period}</span>
-                </>
-              )}
-           </div>
-
-           <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input type="text" placeholder="Search..." className="bg-slate-800 border border-slate-700 text-sm rounded-full pl-9 pr-4 py-1.5 text-slate-300 focus:outline-none focus:border-blue-500 w-48"/>
+        {/* PRESENTATION MODE HEADER (Replaces standard header) */}
+        {isPresentationMode && (
+           <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-50 flex items-center justify-between px-8 shadow-2xl">
+              <div className="flex items-center gap-4 text-white">
+                 <div className="flex items-center gap-2">
+                    <span className="font-bold text-xl text-blue-400">{selectedModel.name.replace(/_/g, ' ')}</span>
+                    <span className="text-slate-600 text-xl">/</span>
+                    <span className="text-lg font-mono text-slate-300">{activeFile?.period}</span>
+                 </div>
+                 <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs font-bold uppercase tracking-widest text-emerald-400">
+                    {activeSheet}
+                 </div>
               </div>
-              <div className="h-8 w-px bg-slate-800 mx-2"></div>
               
+              {/* Top Right Exit */}
               <button 
-                onClick={togglePresentation}
-                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
-                title="Presentation Mode"
+                  onClick={togglePresentation}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 rounded-lg border border-slate-700 transition-colors text-sm font-medium"
               >
-                <MonitorPlay className="w-5 h-5" />
+                 <Minimize2 className="w-4 h-4" /> Exit Slide Show
               </button>
-
-              <Bell className="w-5 h-5 text-slate-400 hover:text-white cursor-pointer" />
-              <UserCircle className="w-8 h-8 text-slate-400 hover:text-white cursor-pointer" />
            </div>
-        </div>
+        )}
+
+        {/* STANDARD TOP NAV BAR */}
+        {!isPresentationMode && (
+          <div 
+            className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500"
+          >
+             <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span>Fraud Analytics</span>
+                <span className="text-slate-600">/</span>
+                <span className="text-white font-medium">{selectedModel.name}</span>
+                {activeFile && (
+                  <>
+                    <span className="text-slate-600">/</span>
+                    <span className="text-blue-400">{activeFile.period}</span>
+                  </>
+                )}
+             </div>
+
+             <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input type="text" placeholder="Search..." className="bg-slate-800 border border-slate-700 text-sm rounded-full pl-9 pr-4 py-1.5 text-slate-300 focus:outline-none focus:border-blue-500 w-48"/>
+                </div>
+                <div className="h-8 w-px bg-slate-800 mx-2"></div>
+                
+                <button 
+                  onClick={togglePresentation}
+                  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                  title="Presentation Mode"
+                >
+                  <MonitorPlay className="w-5 h-5" />
+                </button>
+
+                <Bell className="w-5 h-5 text-slate-400 hover:text-white cursor-pointer" />
+                <UserCircle className="w-8 h-8 text-slate-400 hover:text-white cursor-pointer" />
+             </div>
+          </div>
+        )}
 
         {/* WORKSPACE */}
         {activeFile ? (
           <>
             {/* Tabs Bar */}
-            <div 
-              className={clsx(
-                "bg-slate-900/50 border-b border-slate-800 px-4 flex items-end gap-1 overflow-x-auto transition-all duration-500",
-                isPresentationMode ? "h-0 opacity-0 pt-0 border-0" : "pt-2 opacity-100"
-              )}
-            >
-               {workbookData?.sheetNames.map(sheet => (
-                 <button
-                   key={sheet}
-                   onClick={() => handleSheetSwitch(sheet)}
-                   className={clsx(
-                     "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative",
-                     activeSheet === sheet 
-                       ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10" 
-                       : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-                   )}
-                 >
-                   {sheet}
-                   {activeSheet === sheet && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>}
-                 </button>
-               ))}
-               
-               <div className="flex-1"></div>
-               <div className="pb-2 flex gap-2">
-                 <button 
-                   onClick={() => setIsRuleModalOpen(true)}
-                   className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
-                 >
-                   <Filter className="w-3 h-3" /> Add Rule
-                 </button>
-                 <button className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><Download className="w-4 h-4"/></button>
-               </div>
-            </div>
-
-            {/* PRESENTATION MODE CONTROLS (Floating Arrows) */}
-            {isPresentationMode && (
-              <>
-                <button 
-                  onClick={() => navigateSheet('prev')}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-800/50 hover:bg-blue-600 text-slate-400 hover:text-white rounded-full backdrop-blur-sm transition-all shadow-xl border border-slate-700"
-                >
-                  <ChevronLeft className="w-8 h-8" />
-                </button>
-                <button 
-                  onClick={() => navigateSheet('next')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-800/50 hover:bg-blue-600 text-slate-400 hover:text-white rounded-full backdrop-blur-sm transition-all shadow-xl border border-slate-700"
-                >
-                  <ChevronRight className="w-8 h-8" />
-                </button>
-                
-                {/* Current Sheet Indicator */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/80 backdrop-blur border border-slate-700 px-6 py-2 rounded-full text-white font-bold shadow-2xl">
-                  {activeSheet}
-                </div>
-              </>
+            {!isPresentationMode && (
+              <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end gap-1 overflow-x-auto pt-2">
+                 {workbookData?.sheetNames.map(sheet => (
+                   <button
+                     key={sheet}
+                     onClick={() => handleSheetSwitch(sheet)}
+                     className={clsx(
+                       "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative",
+                       activeSheet === sheet 
+                         ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10" 
+                         : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+                     )}
+                   >
+                     {sheet}
+                     {activeSheet === sheet && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>}
+                   </button>
+                 ))}
+                 <div className="flex-1"></div>
+                 <div className="pb-2 flex gap-2">
+                   <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">
+                     <Filter className="w-3 h-3" /> Add Rule
+                   </button>
+                   <button className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><Download className="w-4 h-4"/></button>
+                 </div>
+              </div>
             )}
 
             {/* Table Area */}
             <div className="flex-1 overflow-hidden relative bg-slate-950">
-              <div className="absolute inset-0 overflow-auto custom-scrollbar">
+              <div className={clsx("absolute inset-0 overflow-auto custom-scrollbar", isPresentationMode && "pt-20")}> 
+                {/* Added pt-20 in presentation mode so table starts below header */}
+                
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-500">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
@@ -279,7 +272,6 @@ const ModelDetail = () => {
                               key={i} 
                               className={clsx(
                                 "border-b border-slate-700 font-semibold tracking-wider bg-slate-900 whitespace-nowrap",
-                                // CONDITIONAL PADDING FOR PRESENTATION MODE
                                 isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs"
                               )}
                             >
@@ -309,7 +301,6 @@ const ModelDetail = () => {
                                     className={clsx(
                                       "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
                                       className,
-                                      // CONDITIONAL PADDING FOR PRESENTATION MODE
                                       isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm"
                                     )}
                                     style={style} 
@@ -327,14 +318,28 @@ const ModelDetail = () => {
                 )}
               </div>
               
-              {/* ZOOM CONTROLS */}
-              <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl z-50">
-                 <button onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomOut className="w-4 h-4"/></button>
-                 <span className="text-xs font-mono w-10 text-center text-slate-300">{zoomLevel}%</span>
-                 <button onClick={() => setZoomLevel(prev => Math.min(150, prev + 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomIn className="w-4 h-4"/></button>
+              {/* BOTTOM CONTROLS: Zoom + Navigation */}
+              <div className="absolute bottom-6 right-6 flex items-center gap-4 z-50">
+                 
+                 {/* NAV CONTROLS (Only in Pres Mode) */}
                  {isPresentationMode && (
-                   <button onClick={togglePresentation} className="ml-2 p-1.5 text-red-400 hover:bg-red-900/20 rounded border-l border-slate-700 pl-2" title="Exit Presentation"><Minimize2 className="w-4 h-4"/></button>
+                   <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl">
+                     <button onClick={() => navigateSheet('prev')} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded">
+                        <ChevronLeft className="w-5 h-5"/>
+                     </button>
+                     <div className="h-4 w-px bg-slate-700 mx-1"></div>
+                     <button onClick={() => navigateSheet('next')} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded">
+                        <ChevronRight className="w-5 h-5"/>
+                     </button>
+                   </div>
                  )}
+
+                 {/* ZOOM CONTROLS */}
+                 <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl">
+                    <button onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomOut className="w-4 h-4"/></button>
+                    <span className="text-xs font-mono w-10 text-center text-slate-300">{zoomLevel}%</span>
+                    <button onClick={() => setZoomLevel(prev => Math.min(150, prev + 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomIn className="w-4 h-4"/></button>
+                 </div>
               </div>
 
             </div>
