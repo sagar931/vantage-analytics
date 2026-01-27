@@ -11,6 +11,7 @@ export const FileSystemProvider = ({ children }) => {
   const [models, setModels] = useState({}); // This stores our scanned data
   const [isScanning, setIsScanning] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
+  const [manifest, setManifest] = useState(null);
 
   const connectDirectory = async () => {
     try {
@@ -58,6 +59,18 @@ export const FileSystemProvider = ({ children }) => {
   };
 
 
+  const loadManifest = async (file) => {
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      setManifest(json);
+      console.log("✅ VLM Manifest Loaded:", json);
+      return true;
+    } catch (err) {
+      console.error("Failed to parse .vlm file", err);
+      return false;
+    }
+  };
 
   return (
     <FileSystemContext.Provider value={{ 
@@ -69,7 +82,9 @@ export const FileSystemProvider = ({ children }) => {
       disconnect,
       selectedModel,
       openModel,
-      closeModel 
+      closeModel,
+      manifest,
+      loadManifest 
     }}>
       {children}
     </FileSystemContext.Provider>

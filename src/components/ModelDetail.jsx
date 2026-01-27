@@ -54,9 +54,11 @@ const ModelDetail = () => {
         <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-900">
           {/* Simulated Barclays Logo */}
           <div className="flex items-center gap-2 text-cyan-400 font-bold tracking-tight text-lg">
-            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded flex items-center justify-center text-white">
-              <span className="font-serif italic font-black text-xl">B</span>
-            </div>
+            <img 
+                    src="public/barclays_logo.png"  // Make sure file is in /public folder
+                    alt="Barclays" 
+                    className="h-8 w-auto object-contain" // h-8 controls height, w-auto keeps aspect ratio
+             />
             <span>BARCLAYS</span>
           </div>
         </div>
