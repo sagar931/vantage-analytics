@@ -72,6 +72,27 @@ export const FileSystemProvider = ({ children }) => {
     }
   };
 
+  // Add this function inside FileSystemProvider
+  const updateManifest = (modelId, sheetName, newRule) => {
+    setManifest(prev => {
+      // Deep copy safely
+      const newManifest = JSON.parse(JSON.stringify(prev || { conditional_formatting: {} }));
+      
+      // Ensure structure exists
+      if (!newManifest.conditional_formatting) newManifest.conditional_formatting = {};
+      if (!newManifest.conditional_formatting[modelId]) newManifest.conditional_formatting[modelId] = {};
+      if (!newManifest.conditional_formatting[modelId][sheetName]) newManifest.conditional_formatting[modelId][sheetName] = [];
+      
+      // Add rule
+      newManifest.conditional_formatting[modelId][sheetName].push(newRule);
+      
+      console.log("📝 Manifest Updated:", newManifest);
+      return newManifest;
+    });
+  };
+
+  // Add 'updateManifest' to the value={{...}} object
+
   return (
     <FileSystemContext.Provider value={{ 
       rootHandle, 
@@ -84,7 +105,8 @@ export const FileSystemProvider = ({ children }) => {
       openModel,
       closeModel,
       manifest,
-      loadManifest 
+      loadManifest,
+      updateManifest 
     }}>
       {children}
     </FileSystemContext.Provider>
