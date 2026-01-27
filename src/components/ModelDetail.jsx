@@ -6,7 +6,7 @@ import RuleBuilder from './RuleBuilder';
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
   ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, 
-  Edit3, Save, Snowflake, XCircle 
+  Edit3, Save, Snowflake, Ruler 
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -26,9 +26,16 @@ const ModelDetail = () => {
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   
-  // NEW: Feature States
+  // FEATURE STATES
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isFirstColFrozen, setIsFirstColFrozen] = useState(false);
+  const [showRowNumbers, setShowRowNumbers] = useState(false);
+  const [frozenColCount, setFrozenColCount] = useState(0);     
+  const [selectedColIndex, setSelectedColIndex] = useState(null); 
+
+  // Constants
+  const COLUMN_WIDTH = 192; // 12rem
+  const ROW_NUM_WIDTH = 64; 
+  const BG_COLOR = '#0f172a'; // Slate 900 (Opaque)
 
   // Group files by Year
   const filesByYear = selectedModel.files.reduce((acc, file) => {
@@ -47,6 +54,8 @@ const ModelDetail = () => {
       const firstSheet = data.sheetNames[0];
       setActiveSheet(firstSheet);
       setSheetData(parseSheetData(data.workbook, firstSheet));
+      setFrozenColCount(0);
+      setSelectedColIndex(null);
     } catch (error) {
       console.error("Failed to load file", error);
     } finally {
@@ -58,6 +67,7 @@ const ModelDetail = () => {
     if (!workbookData) return;
     setActiveSheet(sheetName);
     setSheetData(parseSheetData(workbookData.workbook, sheetName));
+    setFrozenColCount(0);
   };
 
   const navigateSheet = (direction) => {
@@ -82,18 +92,28 @@ const ModelDetail = () => {
     }
   };
 
-  // NEW: Handle Cell Editing
   const handleCellEdit = (rowIndex, cellIndex, newValue) => {
     const updatedData = [...sheetData];
-    // rowIndex + 1 because row 0 is headers in our slice logic below, 
-    // but here we are editing the raw data which includes header at 0.
-    // Wait, sheetData includes headers at 0.
-    // The map below uses sheetData.slice(1), so rowIndex corresponds to sheetData[rowIndex + 1]
-    
-    // Let's be precise: We want to update sheetData[rowIndex + 1][cellIndex]
     const actualRowIndex = rowIndex + 1;
     updatedData[actualRowIndex][cellIndex] = newValue;
     setSheetData(updatedData);
+  };
+
+  const handleFreeze = () => {
+    if (selectedColIndex !== null) {
+      if (frozenColCount === selectedColIndex + 1) {
+        setFrozenColCount(0);
+      } else {
+        setFrozenColCount(selectedColIndex + 1);
+      }
+    }
+  };
+
+  const getStickyLeft = (index) => {
+    let left = 0;
+    if (showRowNumbers) left += ROW_NUM_WIDTH; 
+    left += index * COLUMN_WIDTH; 
+    return left;
   };
 
   return (
@@ -177,7 +197,7 @@ const ModelDetail = () => {
         
         {/* PRESENTATION HEADER */}
         {isPresentationMode && (
-           <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-50 flex items-center justify-between px-8 shadow-2xl">
+           <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-[60] flex items-center justify-between px-8 shadow-2xl">
               <div className="flex items-center gap-4 text-white">
                  <div className="flex items-center gap-2">
                     <span className="font-bold text-xl text-blue-400">{selectedModel.name.replace(/_/g, ' ')}</span>
@@ -218,7 +238,6 @@ const ModelDetail = () => {
                   <input type="text" placeholder="Search..." className="bg-slate-800 border border-slate-700 text-sm rounded-full pl-9 pr-4 py-1.5 text-slate-300 focus:outline-none focus:border-blue-500 w-48"/>
                 </div>
                 <div className="h-8 w-px bg-slate-800 mx-2"></div>
-                
                 <button 
                   onClick={togglePresentation}
                   className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -226,7 +245,6 @@ const ModelDetail = () => {
                 >
                   <MonitorPlay className="w-5 h-5" />
                 </button>
-
                 <Bell className="w-5 h-5 text-slate-400 hover:text-white cursor-pointer" />
                 <UserCircle className="w-8 h-8 text-slate-400 hover:text-white cursor-pointer" />
              </div>
@@ -236,7 +254,7 @@ const ModelDetail = () => {
         {/* WORKSPACE */}
         {activeFile ? (
           <>
-            {/* Toolbar & Tabs */}
+            {/* Toolbar */}
             {!isPresentationMode && (
               <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end gap-1 overflow-x-auto pt-2">
                  {workbookData?.sheetNames.map(sheet => (
@@ -256,20 +274,30 @@ const ModelDetail = () => {
                  ))}
                  <div className="flex-1"></div>
                  <div className="pb-2 flex gap-2">
-                   
-                   {/* NEW: Toggle Freeze Column */}
                    <button 
-                     onClick={() => setIsFirstColFrozen(!isFirstColFrozen)}
+                     onClick={() => setShowRowNumbers(!showRowNumbers)}
                      className={clsx(
                        "p-1.5 rounded transition-colors border",
-                       isFirstColFrozen ? "bg-blue-600 border-blue-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white"
+                       showRowNumbers ? "bg-purple-600 border-purple-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white"
                      )}
-                     title="Freeze First Column"
+                     title="Toggle Row Numbers"
+                   >
+                     <Ruler className="w-4 h-4"/>
+                   </button>
+                   <button 
+                     onClick={handleFreeze}
+                     disabled={selectedColIndex === null}
+                     className={clsx(
+                       "p-1.5 rounded transition-colors border flex items-center gap-1",
+                       frozenColCount > 0 ? "bg-blue-600 border-blue-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white",
+                       selectedColIndex === null && "opacity-50 cursor-not-allowed"
+                     )}
+                     title="Freeze up to selected column"
                    >
                      <Snowflake className="w-4 h-4"/>
+                     {selectedColIndex !== null && <span className="text-[10px] font-bold">{selectedColIndex + 1}</span>}
                    </button>
-
-                   {/* NEW: Toggle Edit Mode */}
+                   <div className="w-px h-6 bg-slate-700 mx-1"></div>
                    <button 
                      onClick={() => setIsEditMode(!isEditMode)}
                      className={clsx(
@@ -277,18 +305,15 @@ const ModelDetail = () => {
                        isEditMode ? "bg-amber-600 border-amber-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
                      )}
                    >
-                     {isEditMode ? <><Save className="w-3 h-3"/> </> : <><Edit3 className="w-3 h-3"/> </>}
+                     {isEditMode ? <><Save className="w-3 h-3"/> Done Editing</> : <><Edit3 className="w-3 h-3"/> Edit Data</>}
                    </button>
-
                    <div className="w-px h-6 bg-slate-700 mx-1"></div>
-
                    <button 
                      onClick={() => setIsRuleModalOpen(true)}
                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
                    >
                      <Filter className="w-3 h-3" /> Add Rule
                    </button>
-                   <button className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><Download className="w-4 h-4"/></button>
                  </div>
               </div>
             )}
@@ -301,7 +326,6 @@ const ModelDetail = () => {
                   isPresentationMode && "pt-20"
                 )}
               > 
-                
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-500">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
@@ -312,26 +336,48 @@ const ModelDetail = () => {
                     style={{ zoom: zoomLevel / 100 }}
                     className="min-w-full"
                   >
-                    <table className="min-w-full whitespace-nowrap text-left border-collapse relative">
-                      {/* HEADER: Z-50 forces it on top */}
+                    <table className="table-fixed min-w-full text-left border-collapse relative">
+                      
+                      {/* HEADER - Z-Index Hierarchy: 60 (Frozen) > 50 (Sticky) */}
                       <thead className="text-slate-400 uppercase sticky top-0 z-50 shadow-xl">
                         <tr>
+                          {showRowNumbers && (
+                             <th 
+                               className="px-4 py-4 border-b border-r border-slate-700 font-bold sticky left-0 z-[60] text-center text-slate-500"
+                               style={{ width: ROW_NUM_WIDTH, minWidth: ROW_NUM_WIDTH, backgroundColor: BG_COLOR }} // FIXED: Opaque BG
+                             >
+                               #
+                             </th>
+                          )}
+
                           {sheetData[0]?.map((head, i) => (
                             <th 
                               key={i} 
+                              onClick={() => setSelectedColIndex(i)}
                               className={clsx(
-                                "border-b border-slate-700 font-semibold tracking-wider bg-slate-900 whitespace-nowrap",
+                                "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
+                                selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
                                 isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
-                                // FROZEN COLUMN LOGIC for Header
-                                isFirstColFrozen && i === 0 && "sticky left-0 z-50 bg-slate-900 border-r border-slate-700 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)]"
+                                
+                                // FROZEN LOGIC - HEADER
+                                i < frozenColCount && "sticky z-[60] border-r border-slate-700",
+                                i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
                               )}
+                              style={{ 
+                                width: COLUMN_WIDTH, 
+                                minWidth: COLUMN_WIDTH,
+                                // If frozen or just normal sticky header, force background to hide scrolling rows
+                                backgroundColor: selectedColIndex === i ? 'rgba(30, 58, 138, 0.4)' : BG_COLOR,
+                                ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
+                              }}
                             >
                               {head || `Col ${i+1}`}
                             </th>
                           ))}
                         </tr>
                       </thead>
-                      {/* BODY: Z-0 ensures it stays below */}
+
+                      {/* BODY - Z-Index Hierarchy: 40 (Frozen) > 0 (Normal) */}
                       <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
                         {sheetData.slice(1).map((row, rowIndex) => {
                           const rowObject = {};
@@ -341,6 +387,17 @@ const ModelDetail = () => {
 
                           return (
                             <tr key={rowIndex} className="hover:bg-blue-900/10 transition-colors group">
+                              
+                              {/* Row Number Cell */}
+                              {showRowNumbers && (
+                                <td 
+                                  className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500"
+                                  style={{ backgroundColor: BG_COLOR }} // FIXED: Opaque BG
+                                >
+                                  {rowIndex + 1}
+                                </td>
+                              )}
+
                               {row.map((cell, cellIndex) => {
                                 const columnName = sheetData[0][cellIndex];
                                 const { className, style } = getCellStyle(
@@ -351,15 +408,21 @@ const ModelDetail = () => {
                                   <td 
                                     key={cellIndex} 
                                     className={clsx(
-                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
+                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors truncate",
                                       className,
                                       isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
-                                      // FROZEN COLUMN LOGIC for Cells
-                                      isFirstColFrozen && cellIndex === 0 && "sticky left-0 z-40 bg-slate-900 border-r border-slate-700 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)]"
+                                      
+                                      // FROZEN LOGIC - CELLS
+                                      cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
+                                      cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
                                     )}
-                                    style={style} 
+                                    style={{
+                                      // FIXED: Use inline style for background to ensure opacity
+                                      backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
+                                      ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
+                                      ...style
+                                    }}
                                   >
-                                    {/* EDIT MODE INPUT */}
                                     {isEditMode ? (
                                       <input 
                                         type="text" 
