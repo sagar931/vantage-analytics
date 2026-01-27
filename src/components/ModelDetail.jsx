@@ -250,9 +250,15 @@ const ModelDetail = () => {
             )}
 
             {/* Table Area */}
+            {/* Table Area */}
             <div className="flex-1 overflow-hidden relative bg-slate-950">
-              <div className={clsx("absolute inset-0 overflow-auto custom-scrollbar", isPresentationMode && "pt-20")}> 
-                {/* Added pt-20 in presentation mode so table starts below header */}
+              <div 
+                className={clsx(
+                  "absolute inset-0 overflow-auto custom-scrollbar", 
+                  // In presentation mode, we add padding-top so the table starts BELOW the floating header
+                  isPresentationMode && "pt-20"
+                )}
+              > 
                 
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-500">
@@ -260,9 +266,10 @@ const ModelDetail = () => {
                     Loading Data...
                   </div>
                 ) : (
+                  // FIXED: Replaced 'transform' with 'zoom' to fix Sticky Header
                   <div 
-                    className="inline-block min-w-full align-middle transition-transform duration-200 origin-top-left"
-                    style={{ transform: `scale(${zoomLevel / 100})`, width: `${100 * (100/zoomLevel)}%` }} 
+                    style={{ zoom: zoomLevel / 100 }}
+                    className="min-w-full"
                   >
                     <table className="min-w-full whitespace-nowrap text-left border-collapse">
                       <thead className="text-slate-400 uppercase sticky top-0 z-20 shadow-xl">
@@ -272,6 +279,7 @@ const ModelDetail = () => {
                               key={i} 
                               className={clsx(
                                 "border-b border-slate-700 font-semibold tracking-wider bg-slate-900 whitespace-nowrap",
+                                // In Presentation Mode: Larger Text & Padding
                                 isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs"
                               )}
                             >
@@ -301,6 +309,7 @@ const ModelDetail = () => {
                                     className={clsx(
                                       "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
                                       className,
+                                      // In Presentation Mode: Larger Text & Padding
                                       isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm"
                                     )}
                                     style={style} 
