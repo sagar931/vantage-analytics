@@ -353,9 +353,11 @@ const ModelDetail = () => {
                           {sheetData[0]?.map((head, i) => (
                             <th 
                               key={i} 
-                              onClick={() => setSelectedColIndex(i)}
+                              // FIX 1: Toggle Selection Logic
+                              onClick={() => setSelectedColIndex(selectedColIndex === i ? null : i)}
                               className={clsx(
                                 "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
+                                // Selection State Style (Visuals only, color handled in style prop below)
                                 selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
                                 isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
                                 
@@ -366,8 +368,9 @@ const ModelDetail = () => {
                               style={{ 
                                 width: COLUMN_WIDTH, 
                                 minWidth: COLUMN_WIDTH,
-                                // If frozen or just normal sticky header, force background to hide scrolling rows
-                                backgroundColor: selectedColIndex === i ? 'rgba(30, 58, 138, 0.4)' : BG_COLOR,
+                                // FIX 2: Use SOLID Hex Colors (No RGBA)
+                                // #172554 is a solid dark blue (Blue-950) that matches your theme but is OPAQUE.
+                                backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
                                 ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
                               }}
                             >
