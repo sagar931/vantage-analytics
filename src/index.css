@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Premium Global Styles */
+@theme {
+  --color-premium-dark: #0f172a;
+  --color-premium-card: #1e293b;
+}
+
+body {
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
+}
