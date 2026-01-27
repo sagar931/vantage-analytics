@@ -1,15 +1,30 @@
 import React from 'react';
 import { FileSystemProvider, useFileSystem } from './context/FileSystemContext';
 import LandingPage from './components/LandingPage';
-import Dashboard from './components/Dashboard'; // Import the new component
+import Dashboard from './components/Dashboard';
 import ModelDetail from './components/ModelDetail';
+import VlmSetup from './components/VlmSetup'; // Import the new screen
 
 const MainContent = () => {
-  const { rootHandle, selectedModel } = useFileSystem();
+  const { rootHandle, vlmHandle, selectedModel } = useFileSystem();
 
-  if (!rootHandle) return <LandingPage />;
-  if (selectedModel) return <ModelDetail />; // If model is selected, show Matrix
-  return <Dashboard />; // Otherwise show Grid
+  // STEP 1: No Folder Connection -> Show Landing
+  if (!rootHandle) {
+    return <LandingPage />;
+  }
+
+  // STEP 2: Folder Connected, but No VLM -> Show Setup
+  if (!vlmHandle) {
+    return <VlmSetup />;
+  }
+
+  // STEP 3: Both Connected -> Show App
+  // Sub-routing for Dashboard vs Detail View
+  if (selectedModel) {
+    return <ModelDetail />;
+  }
+  
+  return <Dashboard />;
 };
 
 function App() {

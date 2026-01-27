@@ -41,34 +41,6 @@ const LandingPage = () => {
           <span>Connect Local Repository</span>
         </button>
 
-        {/* 2. Secondary Action: Upload VLM */}
-        <div className="relative">
-          <input 
-            type="file" 
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".vlm" // Only accept .vlm
-            className="hidden"
-          />
-          
-          {manifest ? (
-            // Success State
-            <div className="w-full flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-400 py-3 px-6 rounded-xl text-sm font-medium border border-emerald-500/20 cursor-default">
-              <CheckCircle className="w-4 h-4" />
-              <span>Logic Manifest Loaded</span>
-            </div>
-          ) : (
-            // Upload State
-            <button 
-              onClick={() => fileInputRef.current.click()}
-              className="w-full flex items-center justify-center gap-2 bg-slate-800 text-slate-400 py-3 px-6 rounded-xl text-sm font-medium transition-all hover:bg-slate-700 hover:text-white border border-slate-700 hover:border-slate-600 dashed-border"
-            >
-              <FileJson className="w-4 h-4" />
-              <span>Load Logic Manifest (.vlm)</span>
-            </button>
-          )}
-        </div>
-
         {/* ... Footer (keep existing code) ... */}
       </div>
     </div>
