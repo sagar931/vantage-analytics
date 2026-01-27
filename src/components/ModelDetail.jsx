@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFileSystem } from '../context/FileSystemContext';
 import { readExcelFile, parseSheetData } from '../utils/excelReader';
 import { getCellStyle } from '../utils/logicEngine'; 
 import RuleBuilder from './RuleBuilder'; 
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
-  ChevronLeft, ChevronRight, Maximize2, Minimize2, MonitorPlay, ZoomIn, ZoomOut 
+  ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2 
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -20,7 +20,7 @@ const ModelDetail = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
 
-  // VIEW STATE (New Premium Features)
+  // VIEW STATE
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
@@ -55,27 +55,40 @@ const ModelDetail = () => {
     setSheetData(parseSheetData(workbookData.workbook, sheetName));
   };
 
+  // NEW: Navigate Sheets in Presentation Mode
+  const navigateSheet = (direction) => {
+    if (!workbookData || !activeSheet) return;
+    const currentIndex = workbookData.sheetNames.indexOf(activeSheet);
+    let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+    // Loop around or stop? Let's stop at edges.
+    if (newIndex >= 0 && newIndex < workbookData.sheetNames.length) {
+      handleSheetSwitch(workbookData.sheetNames[newIndex]);
+    }
+  };
+
   const togglePresentation = () => {
     if (!isPresentationMode) {
       setIsPresentationMode(true);
-      setIsSidebarCollapsed(true); // Auto-collapse sidebar
+      setIsSidebarCollapsed(true);
+      setZoomLevel(110); // Auto-zoom slightly for impact
     } else {
       setIsPresentationMode(false);
       setIsSidebarCollapsed(false);
+      setZoomLevel(100);
     }
   };
 
   return (
     <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative">
       
-      {/* 1. LEFT SIDEBAR (Collapsible) */}
+      {/* 1. LEFT SIDEBAR */}
       <div 
         className={clsx(
           "bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-in-out relative",
           isSidebarCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-72 opacity-100"
         )}
       >
-        {/* Branding */}
         <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-900 whitespace-nowrap">
           <div className="flex items-center gap-2 text-cyan-400 font-bold tracking-tight text-lg">
              <img src="/barclays_logo.png" alt="Barclays" className="h-8 w-auto object-contain"/>
@@ -83,14 +96,12 @@ const ModelDetail = () => {
           </div>
         </div>
 
-        {/* Back Button */}
         <div className="p-4 whitespace-nowrap">
            <button onClick={closeModel} className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 py-2 rounded-lg transition-all text-sm font-medium border border-slate-700">
             <ArrowLeft className="w-4 h-4" /> Return to Grid
           </button>
         </div>
 
-        {/* Model Info */}
         <div className="px-6 mb-4 whitespace-nowrap">
           <h2 className="text-xl font-bold text-white leading-tight">{selectedModel.name.replace(/_/g, ' ')}</h2>
           <span className="text-xs text-slate-500 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800 mt-2 inline-block">
@@ -98,7 +109,6 @@ const ModelDetail = () => {
           </span>
         </div>
 
-        {/* Timeline */}
         <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar whitespace-nowrap">
           {Object.keys(filesByYear).sort().reverse().map(year => (
             <div key={year} className="mb-6">
@@ -134,29 +144,27 @@ const ModelDetail = () => {
         </div>
       </div>
 
-      {/* COLLAPSE TRIGGER (Floating) */}
+      {/* COLLAPSE TRIGGER */}
       {!isPresentationMode && (
         <button 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           className="absolute left-0 top-1/2 -translate-y-1/2 z-30 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:bg-blue-600 p-1 rounded-r-lg shadow-lg transition-all"
-          style={{ left: isSidebarCollapsed ? '0px' : '288px' }} // 288px = w-72
+          style={{ left: isSidebarCollapsed ? '0px' : '288px' }}
         >
           {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       )}
 
-
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full relative bg-slate-950 transition-all duration-500">
         
-        {/* 2. TOP NAV BAR (Hidden in Presentation Mode) */}
+        {/* TOP NAV BAR */}
         <div 
           className={clsx(
             "bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500 overflow-hidden",
             isPresentationMode ? "h-0 opacity-0 border-0" : "h-16 opacity-100"
           )}
         >
-           {/* Breadcrumbs */}
            <div className="flex items-center gap-2 text-sm text-slate-400">
               <span>Fraud Analytics</span>
               <span className="text-slate-600">/</span>
@@ -169,7 +177,6 @@ const ModelDetail = () => {
               )}
            </div>
 
-           {/* Actions */}
            <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -177,7 +184,6 @@ const ModelDetail = () => {
               </div>
               <div className="h-8 w-px bg-slate-800 mx-2"></div>
               
-              {/* Toggle Presentation Button */}
               <button 
                 onClick={togglePresentation}
                 className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -191,10 +197,10 @@ const ModelDetail = () => {
            </div>
         </div>
 
-        {/* Workspace */}
+        {/* WORKSPACE */}
         {activeFile ? (
           <>
-            {/* 3. Tabs Bar (Hidden in Presentation Mode) */}
+            {/* Tabs Bar */}
             <div 
               className={clsx(
                 "bg-slate-900/50 border-b border-slate-800 px-4 flex items-end gap-1 overflow-x-auto transition-all duration-500",
@@ -218,8 +224,6 @@ const ModelDetail = () => {
                ))}
                
                <div className="flex-1"></div>
-               
-               {/* Toolbar */}
                <div className="pb-2 flex gap-2">
                  <button 
                    onClick={() => setIsRuleModalOpen(true)}
@@ -231,26 +235,54 @@ const ModelDetail = () => {
                </div>
             </div>
 
-            {/* 4. Table Area (With Zoom Support) */}
+            {/* PRESENTATION MODE CONTROLS (Floating Arrows) */}
+            {isPresentationMode && (
+              <>
+                <button 
+                  onClick={() => navigateSheet('prev')}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-800/50 hover:bg-blue-600 text-slate-400 hover:text-white rounded-full backdrop-blur-sm transition-all shadow-xl border border-slate-700"
+                >
+                  <ChevronLeft className="w-8 h-8" />
+                </button>
+                <button 
+                  onClick={() => navigateSheet('next')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-800/50 hover:bg-blue-600 text-slate-400 hover:text-white rounded-full backdrop-blur-sm transition-all shadow-xl border border-slate-700"
+                >
+                  <ChevronRight className="w-8 h-8" />
+                </button>
+                
+                {/* Current Sheet Indicator */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/80 backdrop-blur border border-slate-700 px-6 py-2 rounded-full text-white font-bold shadow-2xl">
+                  {activeSheet}
+                </div>
+              </>
+            )}
+
+            {/* Table Area */}
             <div className="flex-1 overflow-hidden relative bg-slate-950">
               <div className="absolute inset-0 overflow-auto custom-scrollbar">
-                
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-500">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
                     Loading Data...
                   </div>
                 ) : (
-                  // Apply Zoom Scale Here
                   <div 
                     className="inline-block min-w-full align-middle transition-transform duration-200 origin-top-left"
                     style={{ transform: `scale(${zoomLevel / 100})`, width: `${100 * (100/zoomLevel)}%` }} 
                   >
-                    <table className="min-w-full whitespace-nowrap text-sm text-left border-collapse">
-                      <thead className="text-xs text-slate-400 uppercase sticky top-0 z-20 shadow-xl">
+                    <table className="min-w-full whitespace-nowrap text-left border-collapse">
+                      <thead className="text-slate-400 uppercase sticky top-0 z-20 shadow-xl">
                         <tr>
                           {sheetData[0]?.map((head, i) => (
-                            <th key={i} className="px-6 py-4 border-b border-slate-700 font-semibold tracking-wider bg-slate-900 whitespace-nowrap">
+                            <th 
+                              key={i} 
+                              className={clsx(
+                                "border-b border-slate-700 font-semibold tracking-wider bg-slate-900 whitespace-nowrap",
+                                // CONDITIONAL PADDING FOR PRESENTATION MODE
+                                isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs"
+                              )}
+                            >
                               {head || `Col ${i+1}`}
                             </th>
                           ))}
@@ -275,8 +307,10 @@ const ModelDetail = () => {
                                   <td 
                                     key={cellIndex} 
                                     className={clsx(
-                                      "px-6 py-3 border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
-                                      className
+                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
+                                      className,
+                                      // CONDITIONAL PADDING FOR PRESENTATION MODE
+                                      isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm"
                                     )}
                                     style={style} 
                                   >
@@ -293,37 +327,18 @@ const ModelDetail = () => {
                 )}
               </div>
               
-              {/* 5. ZOOM CONTROLS (Bottom Right Floating) */}
+              {/* ZOOM CONTROLS */}
               <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl z-50">
-                 <button 
-                   onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
-                   className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"
-                 >
-                   <ZoomOut className="w-4 h-4"/>
-                 </button>
+                 <button onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomOut className="w-4 h-4"/></button>
                  <span className="text-xs font-mono w-10 text-center text-slate-300">{zoomLevel}%</span>
-                 <button 
-                   onClick={() => setZoomLevel(prev => Math.min(150, prev + 10))}
-                   className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"
-                 >
-                   <ZoomIn className="w-4 h-4"/>
-                 </button>
-                 
-                 {/* Quick Exit Presentation Mode */}
+                 <button onClick={() => setZoomLevel(prev => Math.min(150, prev + 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomIn className="w-4 h-4"/></button>
                  {isPresentationMode && (
-                   <button 
-                    onClick={togglePresentation}
-                    className="ml-2 p-1.5 text-red-400 hover:bg-red-900/20 rounded border-l border-slate-700 pl-2"
-                    title="Exit Presentation"
-                   >
-                     <Minimize2 className="w-4 h-4"/>
-                   </button>
+                   <button onClick={togglePresentation} className="ml-2 p-1.5 text-red-400 hover:bg-red-900/20 rounded border-l border-slate-700 pl-2" title="Exit Presentation"><Minimize2 className="w-4 h-4"/></button>
                  )}
               </div>
 
             </div>
             
-            {/* Rule Builder Modal */}
             <RuleBuilder 
               isOpen={isRuleModalOpen}
               onClose={() => setIsRuleModalOpen(false)}
