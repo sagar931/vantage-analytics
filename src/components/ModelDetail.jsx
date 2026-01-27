@@ -5,7 +5,8 @@ import { getCellStyle } from '../utils/logicEngine';
 import RuleBuilder from './RuleBuilder'; 
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
-  ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, Check, Edit3 
+  ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, 
+  Edit3, Save, Snowflake, XCircle 
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -24,6 +25,10 @@ const ModelDetail = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
+  
+  // NEW: Feature States
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isFirstColFrozen, setIsFirstColFrozen] = useState(false);
 
   // Group files by Year
   const filesByYear = selectedModel.files.reduce((acc, file) => {
@@ -75,6 +80,20 @@ const ModelDetail = () => {
       setIsSidebarCollapsed(false);
       setZoomLevel(100);
     }
+  };
+
+  // NEW: Handle Cell Editing
+  const handleCellEdit = (rowIndex, cellIndex, newValue) => {
+    const updatedData = [...sheetData];
+    // rowIndex + 1 because row 0 is headers in our slice logic below, 
+    // but here we are editing the raw data which includes header at 0.
+    // Wait, sheetData includes headers at 0.
+    // The map below uses sheetData.slice(1), so rowIndex corresponds to sheetData[rowIndex + 1]
+    
+    // Let's be precise: We want to update sheetData[rowIndex + 1][cellIndex]
+    const actualRowIndex = rowIndex + 1;
+    updatedData[actualRowIndex][cellIndex] = newValue;
+    setSheetData(updatedData);
   };
 
   return (
@@ -156,7 +175,7 @@ const ModelDetail = () => {
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full relative bg-slate-950 transition-all duration-500">
         
-        {/* PRESENTATION MODE HEADER (Replaces standard header) */}
+        {/* PRESENTATION HEADER */}
         {isPresentationMode && (
            <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-50 flex items-center justify-between px-8 shadow-2xl">
               <div className="flex items-center gap-4 text-white">
@@ -169,8 +188,6 @@ const ModelDetail = () => {
                     {activeSheet}
                  </div>
               </div>
-              
-              {/* Top Right Exit */}
               <button 
                   onClick={togglePresentation}
                   className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 rounded-lg border border-slate-700 transition-colors text-sm font-medium"
@@ -180,11 +197,9 @@ const ModelDetail = () => {
            </div>
         )}
 
-        {/* STANDARD TOP NAV BAR */}
+        {/* STANDARD NAV */}
         {!isPresentationMode && (
-          <div 
-            className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500"
-          >
+          <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500">
              <div className="flex items-center gap-2 text-sm text-slate-400">
                 <span>Fraud Analytics</span>
                 <span className="text-slate-600">/</span>
@@ -221,7 +236,7 @@ const ModelDetail = () => {
         {/* WORKSPACE */}
         {activeFile ? (
           <>
-            {/* Tabs Bar */}
+            {/* Toolbar & Tabs */}
             {!isPresentationMode && (
               <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end gap-1 overflow-x-auto pt-2">
                  {workbookData?.sheetNames.map(sheet => (
@@ -233,7 +248,7 @@ const ModelDetail = () => {
                        activeSheet === sheet 
                          ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10" 
                          : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-                     )}
+                   )}
                    >
                      {sheet}
                      {activeSheet === sheet && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>}
@@ -241,7 +256,36 @@ const ModelDetail = () => {
                  ))}
                  <div className="flex-1"></div>
                  <div className="pb-2 flex gap-2">
-                   <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">
+                   
+                   {/* NEW: Toggle Freeze Column */}
+                   <button 
+                     onClick={() => setIsFirstColFrozen(!isFirstColFrozen)}
+                     className={clsx(
+                       "p-1.5 rounded transition-colors border",
+                       isFirstColFrozen ? "bg-blue-600 border-blue-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white"
+                     )}
+                     title="Freeze First Column"
+                   >
+                     <Snowflake className="w-4 h-4"/>
+                   </button>
+
+                   {/* NEW: Toggle Edit Mode */}
+                   <button 
+                     onClick={() => setIsEditMode(!isEditMode)}
+                     className={clsx(
+                       "flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors border",
+                       isEditMode ? "bg-amber-600 border-amber-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
+                     )}
+                   >
+                     {isEditMode ? <><Save className="w-3 h-3"/> </> : <><Edit3 className="w-3 h-3"/> </>}
+                   </button>
+
+                   <div className="w-px h-6 bg-slate-700 mx-1"></div>
+
+                   <button 
+                     onClick={() => setIsRuleModalOpen(true)}
+                     className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+                   >
                      <Filter className="w-3 h-3" /> Add Rule
                    </button>
                    <button className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><Download className="w-4 h-4"/></button>
@@ -250,12 +294,10 @@ const ModelDetail = () => {
             )}
 
             {/* Table Area */}
-            {/* Table Area */}
             <div className="flex-1 overflow-hidden relative bg-slate-950">
               <div 
                 className={clsx(
                   "absolute inset-0 overflow-auto custom-scrollbar", 
-                  // In presentation mode, we add padding-top so the table starts BELOW the floating header
                   isPresentationMode && "pt-20"
                 )}
               > 
@@ -266,21 +308,22 @@ const ModelDetail = () => {
                     Loading Data...
                   </div>
                 ) : (
-                  // FIXED: Replaced 'transform' with 'zoom' to fix Sticky Header
                   <div 
                     style={{ zoom: zoomLevel / 100 }}
                     className="min-w-full"
                   >
-                    <table className="min-w-full whitespace-nowrap text-left border-collapse">
-                      <thead className="text-slate-400 uppercase sticky top-0 z-20 shadow-xl">
+                    <table className="min-w-full whitespace-nowrap text-left border-collapse relative">
+                      {/* HEADER: Z-50 forces it on top */}
+                      <thead className="text-slate-400 uppercase sticky top-0 z-50 shadow-xl">
                         <tr>
                           {sheetData[0]?.map((head, i) => (
                             <th 
                               key={i} 
                               className={clsx(
                                 "border-b border-slate-700 font-semibold tracking-wider bg-slate-900 whitespace-nowrap",
-                                // In Presentation Mode: Larger Text & Padding
-                                isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs"
+                                isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
+                                // FROZEN COLUMN LOGIC for Header
+                                isFirstColFrozen && i === 0 && "sticky left-0 z-50 bg-slate-900 border-r border-slate-700 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)]"
                               )}
                             >
                               {head || `Col ${i+1}`}
@@ -288,7 +331,8 @@ const ModelDetail = () => {
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/50 bg-slate-900">
+                      {/* BODY: Z-0 ensures it stays below */}
+                      <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
                         {sheetData.slice(1).map((row, rowIndex) => {
                           const rowObject = {};
                           sheetData[0].forEach((header, index) => {
@@ -309,12 +353,23 @@ const ModelDetail = () => {
                                     className={clsx(
                                       "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
                                       className,
-                                      // In Presentation Mode: Larger Text & Padding
-                                      isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm"
+                                      isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
+                                      // FROZEN COLUMN LOGIC for Cells
+                                      isFirstColFrozen && cellIndex === 0 && "sticky left-0 z-40 bg-slate-900 border-r border-slate-700 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)]"
                                     )}
                                     style={style} 
                                   >
-                                    {cell}
+                                    {/* EDIT MODE INPUT */}
+                                    {isEditMode ? (
+                                      <input 
+                                        type="text" 
+                                        defaultValue={cell}
+                                        onBlur={(e) => handleCellEdit(rowIndex, cellIndex, e.target.value)}
+                                        className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                    ) : (
+                                      cell
+                                    )}
                                   </td>
                                 );
                               })}
@@ -327,10 +382,8 @@ const ModelDetail = () => {
                 )}
               </div>
               
-              {/* BOTTOM CONTROLS: Zoom + Navigation */}
+              {/* Controls */}
               <div className="absolute bottom-6 right-6 flex items-center gap-4 z-50">
-                 
-                 {/* NAV CONTROLS (Only in Pres Mode) */}
                  {isPresentationMode && (
                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl">
                      <button onClick={() => navigateSheet('prev')} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded">
@@ -342,8 +395,6 @@ const ModelDetail = () => {
                      </button>
                    </div>
                  )}
-
-                 {/* ZOOM CONTROLS */}
                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl">
                     <button onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomOut className="w-4 h-4"/></button>
                     <span className="text-xs font-mono w-10 text-center text-slate-300">{zoomLevel}%</span>
@@ -360,7 +411,6 @@ const ModelDetail = () => {
               activeSheet={activeSheet}
               onSave={(newRule) => updateManifest(selectedModel.id, activeSheet, newRule)}
             />
-
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-600 bg-slate-950">
