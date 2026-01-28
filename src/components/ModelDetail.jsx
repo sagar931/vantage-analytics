@@ -400,14 +400,18 @@ const ModelDetail = () => {
                                 colSpan={mergeProps?.colSpan || 1}
                                 rowSpan={mergeProps?.rowSpan || 1}
                                 className={clsx(
-                                  "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
-                                  selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
-                                  isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
-                                  
-                                  // FROZEN LOGIC
-                                  i < frozenColCount && "sticky z-[60] border-r border-slate-700",
-                                  i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
-                                )}
+                                    "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
+                                    
+                                    // NEW: Apply Centering to Merged Headers
+                                    mergeProps?.isStart ? "text-center align-middle" : "text-left align-top",
+
+                                    selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
+                                    isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
+                                    
+                                    // FROZEN LOGIC
+                                    i < frozenColCount && "sticky z-[60] border-r border-slate-700",
+                                    i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
+                                    )}
                                 style={{ 
                                   width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
                                   minWidth: (mergeProps?.colSpan || 1) * COLUMN_WIDTH,
