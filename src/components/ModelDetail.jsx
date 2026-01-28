@@ -18,6 +18,7 @@ import {
 import clsx from 'clsx';
 
   // --- HELPER: FORMATTING ENGINE ---
+// --- HELPER: FORMATTING ENGINE ---
 const formatCellValue = (value, header, isCompactMode) => {
   if (value === null || value === undefined) return '';
 
@@ -30,20 +31,35 @@ const formatCellValue = (value, header, isCompactMode) => {
 
   // 2. HANDLE NUMBERS
   if (typeof value === 'number') {
-     // A. Compact Mode (e.g. 100K)
+     // Check if header implies currency (Amount, Price, Cost, Value, etc.)
+     const isCurrency = /amount|price|cost|value|eur|total/i.test(header);
+     const currencyCode = 'EUR'; // Default to Euro based on your screenshot
+
+     // A. Compact Mode (e.g. €100K)
      if (isCompactMode) {
         return new Intl.NumberFormat('en-US', {
            notation: "compact",
            compactDisplay: "short",
-           maximumFractionDigits: 1
+           maximumFractionDigits: 1,
+           ...(isCurrency && { style: 'currency', currency: currencyCode }) // Add Symbol
         }).format(value);
      }
-     // B. Standard Mode (Commas: 100,000)
+
+     // B. Standard Mode (e.g. €100,000.00)
+     if (isCurrency) {
+        return new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: currencyCode 
+        }).format(value);
+     }
+
+     // C. Generic Number (e.g. 100,000)
      const isID = /id|year|code/i.test(header);
      if (!isID) {
         return value.toLocaleString('en-US');
      }
   }
+
   return value;
 };
 
@@ -636,6 +652,7 @@ const ModelDetail = () => {
                                       key={cellIndex} 
                                       colSpan={mergeProps?.colSpan || 1}
                                       rowSpan={mergeProps?.rowSpan || 1}
+                                      title={typeof cell === 'number' ? cell.toLocaleString('en-US') : cell}
                                       className={clsx(
                                         "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
                                         className,
