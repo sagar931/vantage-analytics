@@ -8,11 +8,10 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
   const [dataKeys, setDataKeys] = useState([]); 
   const [threshold, setThreshold] = useState(''); 
 
-  // FIX 1: Reset state when opening or changing sheets to prevent "Ghost Keys"
+  // Reset state when opening
   useEffect(() => {
     if (isOpen) {
       setTitle('');
-      // Default to first column for X, empty for Y
       setXAxis(columns[0] || ''); 
       setDataKeys([]); 
       setThreshold('');
@@ -78,7 +77,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
               />
             </div>
             
-            {/* --- FIX: CLEANED UP CHART TYPE SELECTOR --- */}
+            {/* Chart Type Selector */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Type</label>
               <div className="flex gap-2">
@@ -142,6 +141,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
             </div>
           </div>
 
+          {/* Threshold Input - Hidden for Donut and Table */}
           {type !== 'donut' && type !== 'table' && (
              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
