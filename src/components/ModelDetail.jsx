@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFileSystem } from '../context/FileSystemContext';
 import { readExcelFile, parseSheetData } from '../utils/excelReader';
 import { getCellStyle } from '../utils/logicEngine'; 
@@ -13,7 +13,7 @@ import {
   Layout, Maximize, Scan, 
   // Column Manager
   Eye, EyeOff, CheckSquare, Square,
-  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, GitMerge, ArrowRightLeft
+  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, GitMerge, ArrowRightLeft, Move, GripHorizontal, FileSpreadsheet, PieChart
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -105,11 +105,185 @@ const getTrendDelta = (currentVal, currentRow, colIndex, comparisonData, current
   };
 };
 
+// --- NEW: DRAGGABLE WIDGET COMPONENT ---
+// --- NEW: SNAP-TO-GRID WIDGET COMPONENT ---
+const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete, containerWidth }) => {
+  // GRID CONSTANTS
+  const COLS = 12; // 12-column grid like Bootstrap
+  const ROW_HEIGHT = 60; // Base height unit
+  const MARGIN = 16;
+  
+  // Calculate Pixel width of one column dynamically
+  const colWidthPixel = (containerWidth - (MARGIN * (COLS - 1))) / COLS;
+
+  // Initial State (Grid Units) -> Fallback to 6 cols x 6 rows
+  const [gridRect, setGridRect] = useState(layout || { x: 0, y: 0, w: 6, h: 6 });
+  
+  // Visual State (Pixels for smooth dragging)
+  const [pixelRect, setPixelRect] = useState(null); 
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const initialPixelRef = useRef(null);
+
+  // Convert Grid Units -> Pixels for Rendering
+  const getPixelStyle = () => {
+    // If dragging/resizing, use the temporary pixel values
+    if (pixelRect) return {
+       left: pixelRect.x,
+       top: pixelRect.y,
+       width: pixelRect.w,
+       height: pixelRect.h
+    };
+
+    // Otherwise, calculate standard grid position
+    return {
+       left: gridRect.x * (colWidthPixel + MARGIN),
+       top: gridRect.y * (ROW_HEIGHT + MARGIN),
+       width: gridRect.w * (colWidthPixel + MARGIN) - MARGIN,
+       height: gridRect.h * (ROW_HEIGHT + MARGIN) - MARGIN,
+       transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)' // Smooth Snap Animation
+    };
+  };
+
+  // Helper: Snap Pixels to Nearest Grid Unit
+  const snapToGrid = (pxRect) => {
+    const x = Math.round(pxRect.x / (colWidthPixel + MARGIN));
+    const y = Math.round(pxRect.y / (ROW_HEIGHT + MARGIN));
+    const w = Math.max(2, Math.round(pxRect.w / (colWidthPixel + MARGIN))); // Min 2 cols
+    const h = Math.max(3, Math.round(pxRect.h / (ROW_HEIGHT + MARGIN))); // Min 3 rows
+    return { x, y, w, h };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging && !isResizing) return;
+      
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+
+      if (isDragging) {
+        setPixelRect({
+          x: initialPixelRef.current.x + dx,
+          y: initialPixelRef.current.y + dy,
+          w: initialPixelRef.current.w,
+          h: initialPixelRef.current.h
+        });
+      } else if (isResizing) {
+        setPixelRect({
+           x: initialPixelRef.current.x,
+           y: initialPixelRef.current.y,
+           w: Math.max(100, initialPixelRef.current.w + dx),
+           h: Math.max(100, initialPixelRef.current.h + dy)
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging || isResizing) {
+        // SNAP LOGIC
+        const finalGrid = snapToGrid(pixelRect);
+        
+        // Boundaries Check
+        if (finalGrid.x < 0) finalGrid.x = 0;
+        if (finalGrid.x + finalGrid.w > COLS) finalGrid.x = COLS - finalGrid.w;
+        if (finalGrid.y < 0) finalGrid.y = 0;
+
+        setGridRect(finalGrid);
+        setPixelRect(null); // Clear pixel override to let Grid take over
+        setIsDragging(false);
+        setIsResizing(false);
+        if (onLayoutChange) onLayoutChange(finalGrid);
+      }
+    };
+
+    if (isDragging || isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, pixelRect, colWidthPixel]);
+
+  // Sync external layout changes
+  useEffect(() => { if (!isDragging && !isResizing && layout) setGridRect(layout); }, [layout]);
+
+  if (!containerWidth) return null; // Wait for container measurement
+
+  const style = getPixelStyle();
+
+  return (
+    <div 
+      className={clsx(
+         "absolute flex flex-col bg-slate-900 border rounded-xl shadow-2xl", 
+         isDragging ? "border-blue-500 shadow-blue-900/50 z-50 cursor-grabbing" : "border-slate-800 z-10 transition-all"
+      )}
+      style={style}
+    >
+      {/* Header */}
+      {isEditing && (
+         <div 
+            className="h-8 bg-slate-800/50 border-b border-slate-700/50 flex items-center justify-between px-2 cursor-grab active:cursor-grabbing group"
+            onMouseDown={(e) => { 
+               e.preventDefault(); 
+               setIsDragging(true); 
+               dragStartRef.current = { x: e.clientX, y: e.clientY }; 
+               // Capture current rendered pixels for smooth drag start
+               const rect = e.currentTarget.parentElement.getBoundingClientRect();
+               const parent = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
+               initialPixelRef.current = { 
+                  x: rect.left - parent.left, 
+                  y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop, 
+                  w: rect.width, 
+                  h: rect.height 
+               };
+               setPixelRect(initialPixelRef.current);
+            }}
+         >
+            <Move className="w-3 h-3 text-slate-500 group-hover:text-blue-400" />
+            <div className="flex gap-2">
+               {onDelete && <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-slate-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>}
+            </div>
+         </div>
+      )}
+      
+      <div className="flex-1 overflow-hidden relative p-1">{children}</div>
+
+      {/* Resize Handle */}
+      {isEditing && (
+         <div 
+            className="absolute bottom-1 right-1 cursor-nwse-resize text-slate-600 hover:text-blue-400 p-1"
+            onMouseDown={(e) => { 
+               e.preventDefault(); 
+               e.stopPropagation(); 
+               setIsResizing(true); 
+               dragStartRef.current = { x: e.clientX, y: e.clientY }; 
+               const rect = e.currentTarget.parentElement.getBoundingClientRect();
+               const parent = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
+               initialPixelRef.current = { 
+                  x: rect.left - parent.left, 
+                  y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop,
+                  w: rect.width, 
+                  h: rect.height 
+               };
+               setPixelRect(initialPixelRef.current);
+            }}
+         >
+            <GripHorizontal className="w-4 h-4" />
+         </div>
+      )}
+    </div>
+  );
+};
 
 const ModelDetail = () => {
 
   const { selectedModel, closeModel, manifest, updateManifest, saveChart, removeChart } = useFileSystem();
   
+  const canvasRef = useRef(null);
+  const [canvasWidth, setCanvasWidth] = useState(0);
   // Data State
   const [activeFile, setActiveFile] = useState(null);
   const [workbookData, setWorkbookData] = useState(null);
@@ -131,6 +305,11 @@ const ModelDetail = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+
+  // --- UI STATE (Moved Up to fix ReferenceError) ---
+  const [activeTab, setActiveTab] = useState('table'); 
+  const [isChartBuilderOpen, setIsChartBuilderOpen] = useState(false);
+  const [chartToDelete, setChartToDelete] = useState(null);
 
   // --- HELPER: FIND PREVIOUS FILE (AUTO-DISCOVERY) ---
 // --- HELPER: AUTO-GENERATE COLUMN MAPPING ---
@@ -156,6 +335,17 @@ const ModelDetail = () => {
 
     setColumnMapping(newMap);
   }, [sheetData, comparisonData]);
+
+  useEffect(() => {
+  if (!canvasRef.current) return;
+  const observer = new ResizeObserver(entries => {
+    for (let entry of entries) {
+       setCanvasWidth(entry.contentRect.width);
+    }
+  });
+  observer.observe(canvasRef.current);
+  return () => observer.disconnect();
+}, [activeTab]); // Re-measure when switching tabs
 
   // VIEW STATE
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -213,11 +403,6 @@ const ModelDetail = () => {
   // --- ADD THESE MISSING LINES BELOW ---
   const [hiddenColumns, setHiddenColumns] = useState([]); // Needed to fix your error
   const [isColManagerOpen, setIsColManagerOpen] = useState(false); // Needed for the dropdown
-
-  // Add this near other states
-  const [activeTab, setActiveTab] = useState('table'); // 'table' | 'charts'
-  const [isChartBuilderOpen, setIsChartBuilderOpen] = useState(false);
-  const [chartToDelete, setChartToDelete] = useState(null); 
 
   // Constants
   const COLUMN_WIDTH = 192; // 12rem
@@ -445,6 +630,22 @@ const ModelDetail = () => {
                  <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
                     <button onClick={() => navigateSheet('prev')} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><ChevronLeft className="w-4 h-4"/></button>
                     <button onClick={() => navigateSheet('next')} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><ChevronRight className="w-4 h-4"/></button>
+                 </div>
+
+                 {/* 1.5 Data/Visual Toggle (NEW) */}
+                 <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                    <button 
+                       onClick={() => setActiveTab('table')} 
+                       className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", activeTab === 'table' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                    >
+                       <FileSpreadsheet className="w-3.5 h-3.5" /> Data
+                    </button>
+                    <button 
+                       onClick={() => setActiveTab('charts')} 
+                       className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", activeTab === 'charts' ? "bg-purple-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                    >
+                       <PieChart className="w-3.5 h-3.5" /> Visuals
+                    </button>
                  </div>
 
                  {/* 2. View Switcher (Existing) */}
@@ -868,37 +1069,45 @@ const ModelDetail = () => {
                     )}
                   </div>
 
-                  {/* Canvas Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                  {/* Canvas (Relative for Drag & Drop & Auto-Fit) */}
+                  <div 
+                    ref={canvasRef} // <--- IMPORTANT: Measures width for Auto-Fit
+                    className="relative min-h-[1200px] w-full bg-slate-950/50 rounded-xl border border-slate-800/50 overflow-hidden"
+                  >
+                    {/* Optional: Visual Grid Lines for editing */}
+                    {!isPresentationMode && (
+                       <div className="absolute inset-0 pointer-events-none opacity-10" 
+                            style={{ 
+                               backgroundSize: `${(canvasWidth - 16*11)/12 + 16}px 76px`, 
+                               backgroundImage: 'linear-gradient(to right, #334155 1px, transparent 1px), linear-gradient(to bottom, #334155 1px, transparent 1px)' 
+                            }} 
+                       />
+                    )}
+                    
                     {manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.map((chartConfig, idx) => (
-                      <div key={idx} className="relative group">
-                        <ChartRenderer 
-                          config={chartConfig} 
-                          data={sheetData.slice(1).map(row => {
-                             const obj = {};
-                             sheetData[0].forEach((key, i) => obj[key] = row[i]);
-                             return obj;
-                          })} 
-                        />
-                        
-                        {/* DELETE BUTTON */}
-                        {!isPresentationMode && (
-                          <button 
-                            onClick={() => setChartToDelete(idx)} // <--- UPDATED: Triggers Modal
-                            className="absolute top-4 right-4 p-2 bg-slate-800/80 backdrop-blur text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-slate-700 shadow-sm"
-                            title="Delete Widget"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                      <DraggableWidget
+                        key={idx}
+                        layout={chartConfig.layout} 
+                        containerWidth={canvasWidth} // <--- IMPORTANT: Passes width to widget
+                        isEditing={!isPresentationMode} 
+                        onDelete={() => setChartToDelete(idx)}
+                        onLayoutChange={(newLayout) => {
+                           const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
+                           currentCharts[idx] = { ...currentCharts[idx], layout: newLayout };
+                           updateManifest(selectedModel.id, activeSheet, currentCharts);
+                        }}
+                      >
+                         <div className="w-full h-full pointer-events-none select-none">
+                            <ChartRenderer config={chartConfig} data={sheetData.slice(1).map(row => { const obj = {}; sheetData[0].forEach((key, i) => obj[key] = row[i]); return obj; })} />
+                         </div>
+                      </DraggableWidget>
                     ))}
                     
                     {/* Empty State */}
                     {(!manifest?.visualizations?.[selectedModel.id]?.[activeSheet] || manifest.visualizations[selectedModel.id][activeSheet].length === 0) && (
-                      <div className="col-span-full h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/50">
-                        <BarChart3 className="w-12 h-12 text-slate-700 mb-4" />
-                        <p className="text-slate-500 font-medium">No charts defined for this sheet yet.</p>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <BarChart3 className="w-12 h-12 text-slate-800 mb-4" />
+                        <p className="text-slate-600 font-medium">No charts defined. Create a new widget to begin.</p>
                       </div>
                     )}
                   </div>
