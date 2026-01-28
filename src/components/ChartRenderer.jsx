@@ -1,203 +1,231 @@
 import React from 'react';
 import { 
   ResponsiveContainer, ComposedChart, PieChart, Pie, Cell, 
-  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Brush 
+  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine 
 } from 'recharts';
+
+// --- HELPER: PREMIUM SHADE GENERATOR ---
+// This ensures multi-line charts look professional, not random.
+const getColorPalette = (baseColor, count) => {
+  // 1. Define Curated Palettes for your Standard Themes
+  const THEMES = {
+    '#3b82f6': ['#3b82f6', '#60a5fa', '#2563eb', '#93c5fd', '#1d4ed8'], // Blue
+    '#ef4444': ['#ef4444', '#f87171', '#dc2626', '#fca5a5', '#b91c1c'], // Red
+    '#10b981': ['#10b981', '#34d399', '#059669', '#6ee7b7', '#047857'], // Green
+    '#f59e0b': ['#f59e0b', '#fbbf24', '#d97706', '#fcd34d', '#b45309'], // Orange
+    '#8b5cf6': ['#8b5cf6', '#a78bfa', '#7c3aed', '#c4b5fd', '#6d28d9'], // Purple
+    '#ec4899': ['#ec4899', '#f472b6', '#db2777', '#fbcfe8', '#be185d'], // Pink
+  };
+
+  // 2. Return curated shades if available
+  if (THEMES[baseColor]) {
+    // If we need more colors than available, loop them
+    if (count <= 5) return THEMES[baseColor].slice(0, count);
+    return Array(count).fill(0).map((_, i) => THEMES[baseColor][i % 5]);
+  }
+
+  // 3. Fallback for custom colors (Opacity Variance)
+  return Array(count).fill(0).map((_, i) => baseColor); 
+};
 
 // HELPER: Convert Excel Serial Date to JS Date String
 const formatExcelDate = (serial) => {
-   // Excel dates (approx years 1990-2050) fall between 30,000 and 60,000
    if (typeof serial === 'number' && serial > 35000 && serial < 60000) {
       const date = new Date((serial - 25569) * 86400 * 1000);
-      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); // "Jan 26"
+      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); 
    }
    return serial;
 };
 
-// HELPER: Draw "Spider Legs" for Donut Labels
+// HELPER: Donut Label Render
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value, stroke }) => {
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  
-  // Coordinates for the line
   const sin = Math.sin(-midAngle * RADIAN);
   const cos = Math.cos(-midAngle * RADIAN);
-  const sx = cx + (outerRadius + 2) * cos;
-  const sy = cy + (outerRadius + 2) * sin;
-  const mx = cx + (outerRadius + 15) * cos;
-  const my = cy + (outerRadius + 15) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 10; 
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
   const ey = my;
   const textAnchor = cos >= 0 ? 'start' : 'end';
 
   return (
     <g>
-      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={stroke} fill="none" opacity={0.5} />
-      <circle cx={ex} cy={ey} r={2} fill={stroke} stroke="none" />
-      <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} textAnchor={textAnchor} fill="#94a3b8" fontSize={11} dominantBaseline="central">
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={stroke} fill="none"/>
+      <circle cx={sx} cy={sy} r={2} fill={stroke} stroke="none"/>
+      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#94a3b8" fontSize={12} dy={4}>
         {name}
       </text>
-      <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey + 12} textAnchor={textAnchor} fill="#fff" fontSize={11} fontWeight="bold" dominantBaseline="central">
-        {value}
+      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#f8fafc" fontSize={12} fontWeight="bold">
+        {value.toLocaleString()}
       </text>
     </g>
   );
 };
 
 const ChartRenderer = ({ config, data }) => {
-  const { title, type, xAxis, dataKeys: configDataKeys, colors, threshold } = config;
-
-  // --- AUTO-FIX: GHOST LEGEND REMOVER ---
-  // Filter out keys that don't exist in the current sheet's data.
-  // This solves the issue where "Report" and "Value" appear on sheets that don't have them.
-  const availableKeys = data && data.length > 0 ? Object.keys(data[0]) : [];
-  const validDataKeys = configDataKeys.filter(k => availableKeys.includes(k));
-  
-  // If filtering removed everything (rare edge case), fallback to config to avoid crash
-  const activeDataKeys = validDataKeys.length > 0 ? validDataKeys : configDataKeys;
-
-  // CALCULATE TOTAL FOR DONUT CENTER
-  const totalValue = type === 'donut' 
-    ? data.reduce((sum, item) => sum + (Number(item[activeDataKeys[0]]) || 0), 0)
-    : 0;
-
-  // RENDER: DONUT CHART (Aesthetic Upgrade)
-  if (type === 'donut') {
+  if (!config || !data || data.length === 0) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hover:border-blue-500/30 transition-colors h-[350px] flex flex-col">
-        <h4 className="text-sm font-bold text-slate-300 mb-4 px-2 border-l-4 border-purple-500">{title}</h4>
-        <div className="flex-1 w-full min-h-0 relative">
-           {/* Center Text */}
-           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-2">
-              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total</span>
-              <span className="text-white text-2xl font-bold">{totalValue.toLocaleString()}</span>
-           </div>
-           
-           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={70} 
-                outerRadius={85}
-                paddingAngle={4}
-                cornerRadius={5} // Rounded Ends
-                dataKey={activeDataKeys[0]} 
-                nameKey={xAxis}      
-                label={(props) => renderCustomizedLabel({ ...props, stroke: colors[props.index % colors.length] })}
-                labelLine={false}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} stroke="rgba(0,0,0,0)" />
-                ))}
-              </Pie>
-              <Tooltip 
-                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px', fontSize: '12px' }}
-                 itemStyle={{ color: '#fff' }}
-                 separator=": "
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="w-full h-full flex items-center justify-center text-slate-500 text-sm italic">
+        No data available
       </div>
     );
   }
 
-  // RENDER: BAR / LINE / AREA
-  const DataComponent = type === 'line' ? Line : type === 'area' ? Area : Bar;
+  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'] } = config;
 
+  // 1. FILTER: Ensure keys exist in data
+  const validDataKeys = (dataKeys || []).filter(key => 
+    data.length > 0 && Object.prototype.hasOwnProperty.call(data[0], key)
+  );
+
+  // 2. PALETTE: Generate Shades if multiple keys exist
+  // We use the first color from the prop as the "Base Color"
+  const activePalette = getColorPalette(colors[0], validDataKeys.length);
+
+  // 3. PIE/DONUT RENDERER
+  if (type === 'donut') {
+    const dataKey = validDataKeys[0];
+    if (!dataKey) return null;
+
+    // Aggregate data for Pie
+    const pieData = data.reduce((acc, row) => {
+      const name = row[xAxis] || 'Unknown';
+      const value = Number(row[dataKey]) || 0;
+      const existing = acc.find(i => i.name === name);
+      if (existing) existing.value += value;
+      else acc.push({ name, value });
+      return acc;
+    }, []);
+
+    return (
+       <div className="w-full h-full p-2">
+         <h3 className="text-white font-bold mb-2 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm">
+            {config.title || dataKey}
+         </h3>
+         <div className="w-full h-[calc(100%-2rem)]">
+           <ResponsiveContainer width="100%" height="100%">
+             <PieChart>
+               <Pie
+                 data={pieData}
+                 cx="50%"
+                 cy="50%"
+                 innerRadius={60}
+                 outerRadius={80}
+                 paddingAngle={5}
+                 dataKey="value"
+                 label={renderCustomizedLabel}
+                 labelLine={false}
+               >
+                 {pieData.map((entry, index) => (
+                   <Cell key={`cell-${index}`} fill={activePalette[index % activePalette.length]} stroke="rgba(0,0,0,0.2)" />
+                 ))}
+               </Pie>
+               <Tooltip 
+                 contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
+                 itemStyle={{ color: '#94a3b8' }}
+                 formatter={(value) => value.toLocaleString()}
+               />
+             </PieChart>
+           </ResponsiveContainer>
+         </div>
+       </div>
+    );
+  }
+
+  // 4. MAIN CHART RENDERER (Bar, Line, Area)
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hover:border-blue-500/30 transition-colors h-[350px] flex flex-col">
-      <h4 className="text-sm font-bold text-slate-300 mb-4 px-2 border-l-4 border-blue-500">{title}</h4>
+    <div className="w-full h-full flex flex-col p-4">
+      <div className="flex justify-between items-center mb-2">
+         <h3 className="text-white font-bold pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm flex items-center gap-2">
+            {config.title || 'Untitled Chart'}
+         </h3>
+      </div>
       
-      <div className="flex-1 w-full min-h-0">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+          <ComposedChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} vertical={false} />
+            
             <XAxis 
               dataKey={xAxis} 
-              stroke="#64748b" 
-              fontSize={10} 
-              tickLine={false} 
-              axisLine={false}
+              tickFormatter={formatExcelDate}
+              stroke="#94a3b8" 
+              fontSize={11} 
+              tickLine={false}
+              axisLine={{ stroke: '#475569' }}
               dy={10}
-              tickFormatter={formatExcelDate} 
-            />
-            <YAxis 
-              stroke="#64748b" 
-              fontSize={10} 
-              tickLine={false} 
-              axisLine={false}
-              dx={-10}
-            />
-            <Tooltip 
-              cursor={{ fill: '#1e293b', opacity: 0.4 }}
-              contentStyle={{ 
-                backgroundColor: '#0f172a', 
-                borderColor: '#334155', 
-                color: '#fff', 
-                borderRadius: '8px',
-                padding: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-              }}
-              itemStyle={{ color: '#fff', padding: '4px 0' }}
-              labelStyle={{ fontWeight: 'bold', marginBottom: '8px' }}
-              labelFormatter={formatExcelDate}
-              formatter={(value, name) => [`${Number(value).toFixed(4)}`, name]}
             />
             
+            <YAxis 
+              stroke="#94a3b8" 
+              fontSize={11} 
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
+            />
+            
+            {/* --- FIX: HIGH VISIBILITY TOOLTIP --- */}
+            <Tooltip 
+              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+              contentStyle={{ 
+                backgroundColor: '#0f172a', // Premium Dark
+                borderColor: '#334155', 
+                borderRadius: '8px', 
+                color: '#f8fafc',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+              }}
+              labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem', fontSize: '12px' }}
+              itemStyle={{ padding: 0 }}
+            />
+            
+            <Legend wrapperStyle={{ paddingTop: '10px' }} iconType="circle" />
+
+            {/* Threshold Line */}
             {threshold && (
-               <ReferenceLine 
-                 y={threshold} 
-                 stroke="#ef4444" 
-                 strokeDasharray="4 4" 
-                 label={{ position: 'right', value: 'Limit', fill: '#ef4444', fontSize: 10 }} 
-               />
+               <ReferenceLine y={Number(threshold)} stroke="#ef4444" strokeDasharray="3 3">
+               </ReferenceLine>
             )}
 
-            {/* Brush for zooming */}
-            <Brush 
-              dataKey={xAxis} 
-              height={25} 
-              stroke="#3b82f6"
-              fill="#1e293b"
-              travellerWidth={10}
-              tickFormatter={formatExcelDate}
-            />
-            
-            {activeDataKeys.map((key, index) => {
-              // Single Bar Threshold Logic
-              if (type === 'bar' && threshold && activeDataKeys.length === 1) {
+            {/* Render Series with Premium Shades */}
+            {validDataKeys.map((key, index) => {
+              // Assign distinct shade from generated palette
+              const seriesColor = activePalette[index % activePalette.length];
+
+              // Component Type Selection
+              const DataComponent = type === 'bar' ? Bar : (type === 'area' ? Area : Line);
+              
+              // Special Case: Single Bar Chart with Threshold Alert
+              if (type === 'bar' && threshold && validDataKeys.length === 1) {
                 return (
                   <Bar key={key} dataKey={key} barSize={40} radius={[4, 4, 0, 0]}>
-                    {data.map((entry, index) => (
+                    {data.map((entry, i) => (
                       <Cell 
-                        key={`cell-${index}`} 
-                        fill={Number(entry[key]) > threshold ? '#ef4444' : colors[index % colors.length]} 
+                        key={`cell-${i}`} 
+                        fill={Number(entry[key]) > threshold ? '#ef4444' : seriesColor} 
                       />
                     ))}
                   </Bar>
                 )
               }
 
-              // Grouped Logic
               return (
                 <DataComponent
                   key={key}
                   type="monotone"
                   dataKey={key}
-                  fill={colors[index % colors.length]}
-                  stroke={colors[index % colors.length]}
+                  fill={seriesColor}    // Use Shade
+                  stroke={seriesColor}  // Use Shade
                   fillOpacity={type === 'area' ? 0.2 : 0.8}
-                  // Auto-size: If multiple bars, make them thinner (16px) to fit side-by-side
-                  barSize={activeDataKeys.length > 1 ? 16 : 40} 
-                  strokeWidth={3}
+                  barSize={validDataKeys.length > 1 ? 12 : 40} // Thinner bars if multiple
+                  strokeWidth={2}
                   radius={[4, 4, 0, 0]}
-                  dot={{ r: 5, strokeWidth: 2, fill: colors[index % colors.length] }}
-                  activeDot={{ r: 8, strokeWidth: 3, fill: colors[index % colors.length] }}
+                  dot={false}
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} // White dot on hover for contrast
                 />
               )
             })}
