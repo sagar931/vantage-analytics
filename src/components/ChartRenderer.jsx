@@ -19,21 +19,26 @@ const ChartRenderer = ({ config, data }) => {
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={60} // Makes it a Donut
+                innerRadius={60} 
                 outerRadius={80}
                 paddingAngle={5}
-                dataKey={dataKeys[0]} // Donut uses 1 value
-                nameKey={xAxis}      // Category Name
+                dataKey={dataKeys[0]} 
+                nameKey={xAxis}      
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} stroke="rgba(0,0,0,0.5)" />
                 ))}
               </Pie>
               <Tooltip 
-                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }}
+                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px' }}
                  itemStyle={{ color: '#fff' }}
               />
-              <Legend verticalAlign="bottom" height={36}/>
+              <Legend 
+                verticalAlign="bottom" 
+                height={36} 
+                iconType="circle"
+                wrapperStyle={{ color: '#94a3b8' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -50,7 +55,7 @@ const ChartRenderer = ({ config, data }) => {
       
       <div className="flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data}>
+          <ComposedChart data={data} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
             <XAxis 
               dataKey={xAxis} 
@@ -69,7 +74,7 @@ const ChartRenderer = ({ config, data }) => {
             />
             <Tooltip 
               cursor={{ fill: '#1e293b', opacity: 0.4 }}
-              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }}
+              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px' }}
               itemStyle={{ color: '#fff' }}
             />
             
@@ -83,17 +88,19 @@ const ChartRenderer = ({ config, data }) => {
                />
             )}
 
-            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+            <Legend 
+              wrapperStyle={{ paddingTop: '10px' }} 
+              iconType="circle"
+            />
             
             {dataKeys.map((key, index) => {
-              // Custom Bar Logic for Thresholds
-              if (type === 'bar' && threshold) {
+              // Custom Bar Logic for Thresholds (Only applies if SINGLE series)
+              if (type === 'bar' && threshold && dataKeys.length === 1) {
                 return (
                   <Bar key={key} dataKey={key} barSize={40} radius={[4, 4, 0, 0]}>
                     {data.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
-                        // If value > threshold, paint it RED. Else use theme color.
                         fill={Number(entry[key]) > threshold ? '#ef4444' : colors[index % colors.length]} 
                       />
                     ))}
@@ -101,7 +108,7 @@ const ChartRenderer = ({ config, data }) => {
                 )
               }
 
-              // Standard Logic (Line/Area/Bar without threshold)
+              // Standard Logic (Grouped Bars, Line, Area)
               return (
                 <DataComponent
                   key={key}
@@ -110,7 +117,7 @@ const ChartRenderer = ({ config, data }) => {
                   fill={colors[index % colors.length]}
                   stroke={colors[index % colors.length]}
                   fillOpacity={type === 'area' ? 0.2 : 0.8}
-                  barSize={40}
+                  barSize={dataKeys.length > 1 ? 20 : 40} // Thinner bars if grouped
                   strokeWidth={3}
                   radius={[4, 4, 0, 0]}
                   dot={{ r: 4, strokeWidth: 2 }}
