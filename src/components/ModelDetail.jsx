@@ -13,11 +13,11 @@ import {
   Layout, Maximize, Scan, 
   // Column Manager
   Eye, EyeOff, CheckSquare, Square,
-  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash
+  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, GitMerge, ArrowRightLeft
 } from 'lucide-react';
 import clsx from 'clsx';
 
-  // --- HELPER: FORMATTING ENGINE ---
+  
 // --- HELPER: FORMATTING ENGINE ---
 const formatCellValue = (value, header, isCompactMode) => {
   if (value === null || value === undefined) return '';
@@ -63,6 +63,49 @@ const formatCellValue = (value, header, isCompactMode) => {
   return value;
 };
 
+// --- HELPER: CALCULATE TREND DELTA (SMART HEADER MATCH) ---
+// --- HELPER: CALCULATE TREND DELTA (WITH MAPPING) ---
+const getTrendDelta = (currentVal, currentRow, colIndex, comparisonData, currentHeaders, columnMapping) => {
+  // 1. Safety Checks
+  if (!comparisonData || !comparisonData.length) return null;
+  if (!currentHeaders || !columnMapping) return null;
+  if (colIndex === 0) return null; 
+  if (typeof currentVal !== 'number') return null;
+
+  // 2. Identify the Column Name & Mapped Target
+  const colName = currentHeaders[colIndex];
+  const targetColName = columnMapping[colName]; // <--- LOOKUP MAPPING
+
+  if (!targetColName) return null; // No mapping exists for this column
+
+  // 3. Find that Target Column in the Previous File
+  const prevHeaders = comparisonData[0];
+  const prevColIndex = prevHeaders.indexOf(targetColName);
+
+  if (prevColIndex === -1) return null; 
+
+  // 4. Find Matching Row (Using Key in Column 0)
+  const rowKey = currentRow[0]; 
+  const prevRow = comparisonData.find(r => r[0] === rowKey);
+
+  if (!prevRow) return null; 
+
+  // 5. Get Previous Value
+  const prevVal = prevRow[prevColIndex];
+  if (typeof prevVal !== 'number') return null;
+
+  // 6. Calculate Delta
+  const delta = currentVal - prevVal;
+  if (Math.abs(delta) < 0.0001) return null;
+
+  return {
+    delta: delta,
+    prev: prevVal,
+    direction: delta > 0 ? 'up' : 'down'
+  };
+};
+
+
 const ModelDetail = () => {
 
   const { selectedModel, closeModel, manifest, updateManifest, saveChart, removeChart } = useFileSystem();
@@ -73,8 +116,46 @@ const ModelDetail = () => {
   const [activeSheet, setActiveSheet] = useState(null);
   const [sheetData, setSheetData] = useState([]);
   const [sheetMerges, setSheetMerges] = useState([]); 
+  
+  // --- NEW: TREND ANALYSIS STATE ---
+  const [comparisonFile, setComparisonFile] = useState(null);
+  const [comparisonData, setComparisonData] = useState(null);
+
+  const [comparisonWorkbook, setComparisonWorkbook] = useState(null); 
+  const [comparisonSheet, setComparisonSheet] = useState(null);
+
+  const [isComparing, setIsComparing] = useState(false);
+
+  const [columnMapping, setColumnMapping] = useState({}); // { "CurrentCol": "PrevCol" }
+  const [isMapperOpen, setIsMapperOpen] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+
+  // --- HELPER: FIND PREVIOUS FILE (AUTO-DISCOVERY) ---
+// --- HELPER: AUTO-GENERATE COLUMN MAPPING ---
+  useEffect(() => {
+    if (!sheetData.length || !comparisonData || !comparisonData.length) return;
+
+    const currentHeaders = sheetData[0];
+    const prevHeaders = comparisonData[0];
+    const newMap = {};
+
+    currentHeaders.forEach(header => {
+       // 1. Try Exact Match
+       if (prevHeaders.includes(header)) {
+          newMap[header] = header;
+       } 
+       // 2. Try Fuzzy Match (Optional: Remove case sensitivity)
+       else {
+          const lower = header.toLowerCase();
+          const match = prevHeaders.find(ph => ph.toLowerCase() === lower);
+          if (match) newMap[header] = match;
+       }
+    });
+
+    setColumnMapping(newMap);
+  }, [sheetData, comparisonData]);
 
   // VIEW STATE
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -356,28 +437,46 @@ const ModelDetail = () => {
                     {activeSheet}
                  </div>
               </div>
+              
+                {/* Center: Controls Group */}
+              <div className="flex items-center gap-4">
+                 
+                 {/* 1. Sheet Navigation */}
+                 <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                    <button onClick={() => navigateSheet('prev')} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><ChevronLeft className="w-4 h-4"/></button>
+                    <button onClick={() => navigateSheet('next')} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><ChevronRight className="w-4 h-4"/></button>
+                 </div>
 
-              {/* Center: View Switcher */}
-              <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
-                <button 
-                  onClick={() => setViewMode('compact')}
-                  className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'compact' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
-                >
-                  <Maximize className="w-3 h-3" /> Full
-                </button>
-                <button 
-                  onClick={() => setViewMode('presentation')}
-                  className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'presentation' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
-                >
-                  <Layout className="w-3 h-3" /> Present
-                </button>
-                <button 
-                  onClick={() => setViewMode('focus')}
-                  className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'focus' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
-                >
-                  <Scan className="w-3 h-3" /> Focus
-                </button>
+                 {/* 2. View Switcher (Existing) */}
+                 <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                   <button 
+                     onClick={() => setViewMode('compact')}
+                     className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'compact' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                   >
+                     <Maximize className="w-3 h-3" /> Full
+                   </button>
+                   <button 
+                     onClick={() => setViewMode('presentation')}
+                     className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'presentation' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                   >
+                     <Layout className="w-3 h-3" /> Present
+                   </button>
+                   <button 
+                     onClick={() => setViewMode('focus')}
+                     className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'focus' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                   >
+                     <Scan className="w-3 h-3" /> Focus
+                   </button>
+                 </div>
+
+                 {/* 3. Zoom Controls */}
+                 <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                    <button onClick={() => setZoomLevel(z => Math.max(50, z - 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><ZoomOut className="w-4 h-4"/></button>
+                    <span className="text-xs font-mono text-slate-400 flex items-center px-2">{zoomLevel}%</span>
+                    <button onClick={() => setZoomLevel(z => Math.min(200, z + 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><ZoomIn className="w-4 h-4"/></button>
+                 </div>
               </div>
+              
               
               {/* Right: Exit */}
               <button 
@@ -392,16 +491,49 @@ const ModelDetail = () => {
         {/* STANDARD NAV */}
         {!isPresentationMode && (
           <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500">
-             <div className="flex items-center gap-2 text-sm text-slate-400">
-                <span>Fraud Analytics</span>
-                <span className="text-slate-600">/</span>
-                <span className="text-white font-medium">{selectedModel.name}</span>
-                {activeFile && (
-                  <>
-                    <span className="text-slate-600">/</span>
-                    <span className="text-blue-400">{activeFile.period}</span>
-                  </>
-                )}
+             <div className="flex items-center gap-4">
+                {/* Breadcrumbs */}
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <span>Fraud Analytics</span><span className="text-slate-600">/</span><span className="text-white font-medium">{selectedModel.name}</span>
+                    {activeFile && <><span className="text-slate-600">/</span><span className="text-blue-400">{activeFile.period}</span></>}
+                </div>
+
+                {/* --- COMPARISON CONTROLS (Auto or Manual) --- */}
+                <div className="flex items-center gap-2">
+                   {comparisonFile ? (
+                      // CASE A: File Found (Show Badge)
+                      <div 
+                         onClick={() => setIsComparing(!isComparing)}
+                         className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-full px-3 py-1 text-xs transition-all hover:border-blue-500 cursor-pointer group select-none"
+                      >
+                         <div className={`w-2 h-2 rounded-full ${isComparing ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></div>
+                         <span className="text-slate-300 group-hover:text-white font-medium">
+                            vs {comparisonFile.period}
+                         </span>
+                         {isComparing && <History className="w-3 h-3 text-slate-500" />}
+                      </div>
+                   ) : (
+                      // CASE B: No Match (Show "Add" Button)
+                      <button 
+                         onClick={() => setIsMapperOpen(true)}
+                         className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-slate-400 border border-dashed border-slate-700 rounded-full hover:text-white hover:border-blue-500 transition-all"
+                      >
+                         <GitMerge className="w-3.5 h-3.5" /> Compare
+                      </button>
+                   )}
+
+                   {/* Mapper/Settings Button (Always Visible) */}
+                   <button 
+                      onClick={() => setIsMapperOpen(true)}
+                      className={clsx(
+                        "p-1.5 rounded-full transition-colors border",
+                        comparisonFile ? "bg-slate-800 border-slate-700 text-slate-400 hover:text-white" : "bg-transparent border-transparent opacity-0 pointer-events-none" 
+                      )}
+                      title="Comparison Settings"
+                   >
+                      <GitMerge className="w-3.5 h-3.5" />
+                   </button>
+                </div>
              </div>
 
              <div className="flex items-center gap-4">
@@ -652,9 +784,20 @@ const ModelDetail = () => {
                                       key={cellIndex} 
                                       colSpan={mergeProps?.colSpan || 1}
                                       rowSpan={mergeProps?.rowSpan || 1}
-                                      title={typeof cell === 'number' ? cell.toLocaleString('en-US') : cell}
+                                      // TOOLTIP: Show formatted value + History context
+                                      title={
+                                        typeof cell === 'number' 
+                                          ? `${cell.toLocaleString('en-US')}${
+                                              isComparing 
+                                                ? (getTrendDelta(cell, row, cellIndex, comparisonData, processedSheetData[0], columnMapping)
+                                                    ? ` (Prev: ${getTrendDelta(cell, row, cellIndex, comparisonData, processedSheetData[0], columnMapping).prev.toLocaleString('en-US')})` 
+                                                    : '') 
+                                                : ''
+                                            }` 
+                                          : cell
+                                      }
                                       className={clsx(
-                                        "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
+                                        "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors relative",
                                         className,
                                         isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
                                         mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
@@ -668,7 +811,29 @@ const ModelDetail = () => {
                                     >
                                       {isEditMode ? (
                                         <input type="text" defaultValue={cell} className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full"/>
-                                      ) : ( formattedValue )}
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                           {/* The Main Value */}
+                                           <span>{formattedValue}</span>
+                                           
+                                           {/* --- TREND INDICATOR (With Mapping) --- */}
+                                           {isComparing && (
+                                              (() => {
+                                                const trend = getTrendDelta(cell, row, cellIndex, comparisonData, processedSheetData[0], columnMapping);
+                                                if (!trend) return null;
+                                                
+                                                const isUp = trend.direction === 'up'; 
+                                                
+                                                return (
+                                                   <span className={clsx("text-[10px] font-bold flex items-center ml-1", isUp ? "text-red-400" : "text-emerald-400")}>
+                                                      {isUp ? '↑' : '↓'} 
+                                                      {Math.abs(trend.delta).toLocaleString('en-US', { maximumFractionDigits: 1 })}
+                                                   </span>
+                                                )
+                                              })()
+                                           )}
+                                        </div>
+                                      )}
                                     </td>
                                   );
                                 })}
@@ -785,6 +950,173 @@ const ModelDetail = () => {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* COLUMN MAPPING & FILE SELECTION MODAL */}
+            {isMapperOpen && (
+               <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                  <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                     
+                     {/* Header */}
+                     <div className="px-6 py-4 border-b border-slate-800 bg-slate-950">
+                        <div className="flex justify-between items-center mb-4">
+                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                              <GitMerge className="w-5 h-5 text-purple-500" /> Comparison Setup
+                           </h3>
+                           <button onClick={() => setIsMapperOpen(false)} className="text-slate-500 hover:text-white">✕</button>
+                        </div>
+
+                        {/* FILE SELECTOR (The Fix) */}
+                        <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex items-center gap-4">
+                           <div className="flex-1">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Compare {activeFile?.period} with:</label>
+                              <select 
+                                 className="w-full bg-slate-800 text-white text-sm border border-slate-700 rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+                                 onChange={(e) => {
+                                    const file = selectedModel.files.find(f => f.originalName === e.target.value);
+                                    if (file) {
+                                       setComparisonFile(file);
+                                       setIsComparing(true);
+                                       // Load Data
+                                       readExcelFile(file.handle).then(data => {
+                                          setComparisonWorkbook(data); // Save Workbook
+                                          
+                                          // Default to matching sheet name or first sheet
+                                          const sheetToLoad = data.sheetNames.includes(activeSheet) ? activeSheet : data.sheetNames[0];
+                                          setComparisonSheet(sheetToLoad);
+
+                                          const { data: rawData } = parseSheetData(data.workbook, sheetToLoad);
+                                          setComparisonData(rawData);
+                                       });
+                                    }
+                                 }}
+                                 value={comparisonFile?.originalName || ""}
+                              >
+                                 <option value="">-- Select a File --</option>
+                                 {selectedModel.files
+                                    .filter(f => f.originalName !== activeFile?.originalName)
+                                    .map(f => (
+                                    <option key={f.originalName} value={f.originalName}>
+                                       {f.period} ({f.originalName})
+                                    </option>
+                                 ))}
+                              </select>
+                           </div>
+                           {comparisonFile && (
+                              <div className="text-emerald-400 text-xs font-bold flex items-center gap-1 mt-4">
+                                 <CheckSquare className="w-3 h-3"/> Linked
+                              </div>
+                           )}
+                        </div>
+
+                        {/* SHEET SELECTOR (The Fix) */}
+                        {comparisonWorkbook && (
+                           <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex items-center gap-4 mt-2">
+                              <div className="flex-1">
+                                 <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    Sheet in Previous File:
+                                 </label>
+                                 <select 
+                                    className="w-full bg-slate-800 text-white text-sm border border-slate-700 rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+                                    value={comparisonSheet || ""}
+                                    onChange={(e) => {
+                                       const newSheet = e.target.value;
+                                       setComparisonSheet(newSheet);
+                                       // Parse the new sheet data
+                                       const { data: rawData } = parseSheetData(comparisonWorkbook.workbook, newSheet);
+                                       setComparisonData(rawData);
+                                    }}
+                                 >
+                                    {comparisonWorkbook.sheetNames.map(sheet => (
+                                       <option key={sheet} value={sheet}>{sheet}</option>
+                                    ))}
+                                 </select>
+                              </div>
+                              <div className="text-slate-500 text-xs italic mt-4">
+                                 Matching against: <span className="text-blue-400 font-bold">{activeSheet}</span>
+                              </div>
+                           </div>
+                        )}
+                     </div>
+
+                     {/* Body: Column Mapper (Only show if file selected) */}
+                     {comparisonData ? (
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-900">
+                           <div className="grid grid-cols-[1fr_auto_1fr] gap-4 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              <div>Current ({activeFile?.period})</div>
+                              <div className="px-2"></div>
+                              <div>Previous ({comparisonFile?.period})</div>
+                           </div>
+
+                           {sheetData[0]?.map((col, idx) => {
+                              if (idx === 0) return null; 
+                              
+                              // Check if currently mapped
+                              const isMapped = !!columnMapping[col];
+                              
+                              return (
+                                 <div key={col} className={clsx("grid grid-cols-[auto_1fr_auto_1fr] gap-3 items-center mb-3 transition-opacity", isMapped ? "opacity-100" : "opacity-50 grayscale")}>
+                                    
+                                    {/* 1. SELECTION CHECKBOX */}
+                                    <button 
+                                       onClick={() => {
+                                          if (isMapped) {
+                                             // Disable: Remove from mapping
+                                             const newMap = { ...columnMapping };
+                                             delete newMap[col];
+                                             setColumnMapping(newMap);
+                                          } else {
+                                             // Enable: Try to find match or default to empty string
+                                             const match = comparisonData?.[0]?.find(c => c === col) || "";
+                                             setColumnMapping(prev => ({ ...prev, [col]: match }));
+                                          }
+                                       }}
+                                       className={clsx("w-5 h-5 rounded border flex items-center justify-center transition-colors", isMapped ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-800 border-slate-700 text-transparent hover:border-slate-500")}
+                                    >
+                                       <CheckSquare className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* 2. Current Column Name */}
+                                    <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 truncate font-medium" title={col}>
+                                       {col}
+                                    </div>
+
+                                    {/* 3. Arrow Icon */}
+                                    <ArrowRightLeft className="w-4 h-4 text-slate-600" />
+
+                                    {/* 4. Target Column Dropdown */}
+                                    <select 
+                                       value={columnMapping[col] || ""}
+                                       disabled={!isMapped}
+                                       onChange={(e) => setColumnMapping(prev => ({ ...prev, [col]: e.target.value }))}
+                                       className={clsx(
+                                          "bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none w-full transition-all",
+                                          !isMapped && "cursor-not-allowed opacity-50"
+                                       )}
+                                    >
+                                       <option value="">(No Match / Skip)</option>
+                                       {comparisonData?.[0]?.map(prevCol => (
+                                          <option key={prevCol} value={prevCol}>{prevCol}</option>
+                                       ))}
+                                    </select>
+                                 </div>
+                              );
+                           })}
+                        </div>
+                     ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                           <p>Please select a file above to begin comparison.</p>
+                        </div>
+                     )}
+
+                     {/* Footer */}
+                     <div className="px-6 py-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3">
+                        <button onClick={() => setIsMapperOpen(false)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium">
+                           Done
+                        </button>
+                     </div>
+                  </div>
+               </div>
             )}
 
           </>
