@@ -3,6 +3,8 @@ import { useFileSystem } from '../context/FileSystemContext';
 import { readExcelFile, parseSheetData } from '../utils/excelReader';
 import { getCellStyle } from '../utils/logicEngine'; 
 import RuleBuilder from './RuleBuilder'; 
+import ChartBuilder from './ChartBuilder';
+import ChartRenderer from './ChartRenderer';
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
   ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, 
@@ -10,12 +12,13 @@ import {
   // View Modes
   Layout, Maximize, Scan, 
   // Column Manager
-  Eye, EyeOff, CheckSquare, Square
+  Eye, EyeOff, CheckSquare, Square,
+  BarChart3, Table
 } from 'lucide-react';
 import clsx from 'clsx';
 
 const ModelDetail = () => {
-  const { selectedModel, closeModel, manifest, updateManifest } = useFileSystem();
+  const { selectedModel, closeModel, manifest, updateManifest, saveChart } = useFileSystem();
   
   // Data State
   const [activeFile, setActiveFile] = useState(null);
@@ -41,6 +44,10 @@ const ModelDetail = () => {
   // --- ADD THESE MISSING LINES BELOW ---
   const [hiddenColumns, setHiddenColumns] = useState([]); // Needed to fix your error
   const [isColManagerOpen, setIsColManagerOpen] = useState(false); // Needed for the dropdown
+
+  // Add this near other states
+  const [activeTab, setActiveTab] = useState('table'); // 'table' | 'charts'
+  const [isChartBuilderOpen, setIsChartBuilderOpen] = useState(false);
 
   // Constants
   const COLUMN_WIDTH = 192; // 12rem
@@ -330,8 +337,7 @@ const ModelDetail = () => {
         {/* WORKSPACE */}
         {activeFile ? (
           <>
-            {/* Toolbar */}
-            {/* Toolbar */}
+            {/* Toolbar */}            
             {!isPresentationMode && (
               <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end justify-between pt-2 relative z-50">
                  
@@ -396,233 +402,226 @@ const ModelDetail = () => {
                    <div className="w-px h-6 bg-slate-700 mx-1"></div>
                    <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"><Filter className="w-3 h-3" /> Add Rule</button>
                  </div>
+
+                 {/* VIEW MODE TOGGLE */}
+                   <div className="bg-slate-800 rounded-lg p-1 flex border border-slate-700 mr-2">
+                      <button 
+                        onClick={() => setActiveTab('table')}
+                        className={clsx("p-1.5 rounded transition-all", activeTab === 'table' ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white")}
+                        title="Table View"
+                      >
+                        <Table className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('charts')}
+                        className={clsx("p-1.5 rounded transition-all", activeTab === 'charts' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")}
+                        title="Chart View"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                      </button>
+                   </div>
+                   
               </div>
             )}
 
-            {/* Table Area */}
-            <div 
-              className={clsx(
-                "flex-1 overflow-hidden relative transition-colors duration-700",
-                // Gradient for Presentation, Flat for Normal
-                isPresentationMode ? "bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950" : "bg-slate-950"
-              )}
-            >
-              <div 
-                className={clsx(
-                  "absolute left-0 right-0 bottom-0 overflow-auto custom-scrollbar", 
-                  // FIXED: Use top-16 in presentation mode so scrolling starts BELOW the header
-                  isPresentationMode ? "top-16" : "top-0"
-                )}
-              > 
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-                    Loading Data...
-                  </div>
-                ) : (
-                  <div 
-                    style={{ zoom: zoomLevel / 100 }}
-                    className={clsx(
-                      "transition-all duration-500 ease-out origin-top", 
-                      // Presentation Container Logic
-                      viewMode === 'presentation' && isPresentationMode 
-                        // CHANGE: Replaced 'overflow-hidden' with 'overflow-x-auto custom-scrollbar'
-                        ? "w-[94%] mx-auto mt-4 mb-4 shadow-2xl rounded-xl border border-slate-700/50 overflow-x-auto custom-scrollbar bg-slate-900" 
-                        : "min-w-full"
-                    )}
-                  >
-                    <table className="table-fixed min-w-full text-left border-collapse relative">
-                      
-                      {/* HEADER - Row Index 0 */}
-                      <thead className="text-slate-400 uppercase sticky top-0 z-50 shadow-xl">
-                        <tr>
-                          {showRowNumbers && (
-                             <th 
-                               className="px-4 py-4 border-b border-r border-slate-700 font-bold sticky left-0 z-[60] text-center text-slate-500"
-                               style={{ width: ROW_NUM_WIDTH, minWidth: ROW_NUM_WIDTH, backgroundColor: BG_COLOR }}
-                             >
-                               #
-                             </th>
-                          )}
+            {/* CONTENT AREA (Table & Charts) */}
+            <div className={clsx("flex-1 overflow-hidden relative transition-colors duration-700", isPresentationMode ? "bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950" : "bg-slate-950")}>
+              
+              {/* --- VIEW 1: DATA TABLE --- */}
+              {activeTab === 'table' && (
+                <div className={clsx("absolute left-0 right-0 bottom-0 overflow-auto custom-scrollbar", isPresentationMode ? "top-16" : "top-0")}> 
+                  
+                  {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
+                      Loading Data...
+                    </div>
+                  ) : (
+                    <div 
+                      style={{ zoom: zoomLevel / 100 }}
+                      className={clsx(
+                        "transition-all duration-500 ease-out origin-top", 
+                        viewMode === 'presentation' && isPresentationMode 
+                          ? "w-[94%] mx-auto mt-4 mb-4 shadow-2xl rounded-xl border border-slate-700/50 overflow-x-auto custom-scrollbar bg-slate-900" 
+                          : "min-w-full"
+                      )}
+                    >
+                      <table className="table-fixed min-w-full text-left border-collapse relative">
+                        
+                        {/* HEADER */}
+                        <thead className="text-slate-400 uppercase sticky top-0 z-50 shadow-xl">
+                          <tr>
+                            {showRowNumbers && (
+                               <th className="px-4 py-4 border-b border-r border-slate-700 font-bold sticky left-0 z-[60] text-center text-slate-500" style={{ width: ROW_NUM_WIDTH, minWidth: ROW_NUM_WIDTH, backgroundColor: BG_COLOR }}>#</th>
+                            )}
 
-                          {sheetData[0]?.map((head, i) => {
-                            // CHECK FOR HEADER MERGES (Row 0)
-                            const mergeProps = getMergeProps(0, i);
-                            if (mergeProps?.isHidden) return null; // Hide covered cells
+                            {sheetData[0]?.map((head, i) => {
+                              if (hiddenColumns.includes(head)) return null;
+                              const mergeProps = getMergeProps(0, i);
+                              if (mergeProps?.isHidden) return null;
+
+                              return (
+                                <th 
+                                  key={i} 
+                                  onClick={() => setSelectedColIndex(selectedColIndex === i ? null : i)}
+                                  colSpan={mergeProps?.colSpan || 1}
+                                  rowSpan={mergeProps?.rowSpan || 1}
+                                  className={clsx(
+                                    "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
+                                    mergeProps?.isStart ? "text-center align-middle" : "text-left align-top",
+                                    selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
+                                    isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
+                                    i < frozenColCount && "sticky z-[60] border-r border-slate-700",
+                                    i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
+                                  )}
+                                  style={{ 
+                                    width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
+                                    minWidth: (mergeProps?.colSpan || 1) * COLUMN_WIDTH,
+                                    backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
+                                    ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
+                                  }}
+                                >
+                                  {head || `Col ${i+1}`}
+                                </th>
+                              );
+                            })}
+                          </tr>
+                        </thead>
+
+                        {/* BODY */}
+                        <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
+                          {sheetData.slice(1).map((row, rowIndex) => {
+                            const actualRowIndex = rowIndex + 1;
+                            
+                            // Row Object for Logic Engine
+                            const rowObject = {};
+                            sheetData[0].forEach((header, index) => { rowObject[header] = row[index]; });
+
+                            // Focus Mode Logic
+                            let isRowDimmed = false;
+                            if (viewMode === 'focus') {
+                               const hasAlert = row.some((cell, i) => {
+                                  const colName = sheetData[0][i];
+                                  const { style } = getCellStyle(cell, colName, rowObject, selectedModel.id, activeSheet, manifest);
+                                  return style?.backgroundColor && (style.backgroundColor.includes('239, 68, 68') || style.backgroundColor.includes('245, 158, 11'));
+                               });
+                               isRowDimmed = !hasAlert;
+                            }
 
                             return (
-                              <th 
-                                key={i} 
-                                onClick={() => setSelectedColIndex(selectedColIndex === i ? null : i)}
-                                colSpan={mergeProps?.colSpan || 1}
-                                rowSpan={mergeProps?.rowSpan || 1}
+                              <tr 
+                                key={rowIndex} 
                                 className={clsx(
-                                  "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
-                                  // Center if Merged
-                                  mergeProps?.isStart ? "text-center align-middle" : "text-left align-top",
-                                  
-                                  selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
-                                  isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
-                                  
-                                  // FROZEN LOGIC
-                                  i < frozenColCount && "sticky z-[60] border-r border-slate-700",
-                                  i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
+                                  "transition-all duration-500 group",
+                                  isRowDimmed ? "opacity-20 grayscale hover:opacity-50" : "opacity-100 hover:bg-blue-900/10"
                                 )}
-                                style={{ 
-                                  width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
-                                  minWidth: (mergeProps?.colSpan || 1) * COLUMN_WIDTH,
-                                  backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
-                                  ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
-                                }}
                               >
-                                {head || `Col ${i+1}`}
-                              </th>
+                                {showRowNumbers && (
+                                  <td className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500" style={{ backgroundColor: BG_COLOR }}>{actualRowIndex + 1}</td>
+                                )}
+
+                                {row.map((cell, cellIndex) => {
+                                  const columnName = sheetData[0][cellIndex];
+                                  if (hiddenColumns.includes(columnName)) return null;
+
+                                  const mergeProps = getMergeProps(actualRowIndex, cellIndex);
+                                  if (mergeProps?.isHidden) return null;
+
+                                  const { className, style } = getCellStyle(cell, columnName, rowObject, selectedModel.id, activeSheet, manifest);
+
+                                  return (
+                                    <td 
+                                      key={cellIndex} 
+                                      colSpan={mergeProps?.colSpan || 1}
+                                      rowSpan={mergeProps?.rowSpan || 1}
+                                      className={clsx(
+                                        "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
+                                        className,
+                                        isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
+                                        mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
+                                        cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
+                                        cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
+                                      )}
+                                      style={{
+                                        backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
+                                        ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
+                                        ...style
+                                      }}
+                                    >
+                                      {isEditMode ? (
+                                        <input type="text" defaultValue={cell} onBlur={(e) => handleCellEdit(rowIndex, cellIndex, e.target.value)} className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                                      ) : ( cell )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
                             );
                           })}
-                        </tr>
-                      </thead>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
-                      {/* BODY - Row Index 1+ */}
-                      {/* BODY - Z-Index 0 (or 40 if frozen) */}
-                      <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
-                        {sheetData.slice(1).map((row, rowIndex) => {
-                          const actualRowIndex = rowIndex + 1; // 0 is header, so data starts at 1
-                          
-                          // 1. Construct Row Object for Logic Engine
-                          const rowObject = {};
-                          sheetData[0].forEach((header, index) => {
-                            rowObject[header] = row[index];
-                          });
-
-                          // 2. FOCUS MODE LOGIC: Check for Critical Issues
-                          let isRowDimmed = false;
-                          if (viewMode === 'focus') {
-                             // Scan every cell in this row
-                             const hasAlert = row.some((cell, i) => {
-                                const colName = sheetData[0][i];
-                                // Get the calculated style for this cell
-                                const { style } = getCellStyle(
-                                  cell, colName, rowObject, selectedModel.id, activeSheet, manifest
-                                );
-                                // Check if background color is Red or Amber (using the RGB values from logicEngine)
-                                return style?.backgroundColor && (
-                                  style.backgroundColor.includes('239, 68, 68') || // Red Alert
-                                  style.backgroundColor.includes('245, 158, 11')   // Amber Warning
-                                );
-                             });
-                             // If NO alert is found, we dim this row
-                             isRowDimmed = !hasAlert;
-                          }
-
-                          return (
-                            <tr 
-                              key={rowIndex} 
-                              className={clsx(
-                                "transition-all duration-500 group",
-                                // THE MAGIC: Dim non-critical rows to 20%, but allow peek (50%) on hover
-                                isRowDimmed ? "opacity-20 grayscale hover:opacity-50" : "opacity-100 hover:bg-blue-900/10"
-                              )}
-                            >
-                              
-                              {/* Row Number Column */}
-                              {showRowNumbers && (
-                                <td 
-                                  className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500"
-                                  style={{ backgroundColor: BG_COLOR }}
-                                >
-                                  {actualRowIndex + 1}
-                                </td>
-                              )}
-
-                              {/* Data Cells */}
-                              {row.map((cell, cellIndex) => {
-                                const columnName = sheetData[0][cellIndex];
-                                
-                                // Handle Hidden Columns
-                                if (hiddenColumns.includes(columnName)) return null; 
-
-                                // Handle Merges
-                                const mergeProps = getMergeProps(actualRowIndex, cellIndex);
-                                if (mergeProps?.isHidden) return null; 
-
-                                // Get Style
-                                const { className, style } = getCellStyle(
-                                  cell, columnName, rowObject, selectedModel.id, activeSheet, manifest
-                                );
-
-                                return (
-                                  <td 
-                                    key={cellIndex} 
-                                    colSpan={mergeProps?.colSpan || 1}
-                                    rowSpan={mergeProps?.rowSpan || 1}
-                                    className={clsx(
-                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
-                                      className,
-                                      isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
-                                      
-                                      // Alignment Logic
-                                      mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
-
-                                      // Frozen Column Logic
-                                      cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
-                                      cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
-                                    )}
-                                    style={{
-                                      backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
-                                      ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
-                                      ...style
-                                    }}
-                                  >
-                                    {isEditMode ? (
-                                      <input 
-                                        type="text" 
-                                        defaultValue={cell} 
-                                        onBlur={(e) => handleCellEdit(rowIndex, cellIndex, e.target.value)} 
-                                        className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      />
-                                    ) : (
-                                      cell
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+              {/* --- VIEW 2: CHART CANVAS --- */}
+              {activeTab === 'charts' && (
+                <div className="absolute inset-0 overflow-y-auto p-8 custom-scrollbar">
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Visual Analysis</h2>
+                      <p className="text-slate-400 text-sm">Dashboard for {activeSheet}</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsChartBuilderOpen(true)}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20"
+                    >
+                      <BarChart3 className="w-4 h-4" /> Create New Widget
+                    </button>
                   </div>
-                )}
-              </div>
-              
-              {/* Controls */}
-              <div className="absolute bottom-6 right-6 flex items-center gap-4 z-50">
-                 {isPresentationMode && (
-                   <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl">
-                     <button onClick={() => navigateSheet('prev')} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded">
-                        <ChevronLeft className="w-5 h-5"/>
-                     </button>
-                     <div className="h-4 w-px bg-slate-700 mx-1"></div>
-                     <button onClick={() => navigateSheet('next')} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded">
-                        <ChevronRight className="w-5 h-5"/>
-                     </button>
-                   </div>
-                 )}
-                 <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 p-1 rounded-lg shadow-xl">
-                    <button onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomOut className="w-4 h-4"/></button>
-                    <span className="text-xs font-mono w-10 text-center text-slate-300">{zoomLevel}%</span>
-                    <button onClick={() => setZoomLevel(prev => Math.min(150, prev + 10))} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded"><ZoomIn className="w-4 h-4"/></button>
-                 </div>
-              </div>
+
+                  {/* Canvas Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                    {manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.map((chartConfig, idx) => (
+                      <ChartRenderer 
+                        key={idx} 
+                        config={chartConfig} 
+                        data={sheetData.slice(1).map(row => {
+                           const obj = {};
+                           sheetData[0].forEach((key, i) => obj[key] = row[i]);
+                           return obj;
+                        })} 
+                      />
+                    ))}
+                    
+                    {/* Empty State */}
+                    {(!manifest?.visualizations?.[selectedModel.id]?.[activeSheet] || manifest.visualizations[selectedModel.id][activeSheet].length === 0) && (
+                      <div className="col-span-full h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/50">
+                        <BarChart3 className="w-12 h-12 text-slate-700 mb-4" />
+                        <p className="text-slate-500 font-medium">No charts defined for this sheet yet.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             </div>
             
+            {/* MODALS */}
             <RuleBuilder 
               isOpen={isRuleModalOpen}
               onClose={() => setIsRuleModalOpen(false)}
               columns={sheetData[0] || []}
               activeSheet={activeSheet}
               onSave={(newRule) => updateManifest(selectedModel.id, activeSheet, newRule)}
+            />
+
+            <ChartBuilder 
+              isOpen={isChartBuilderOpen}
+              onClose={() => setIsChartBuilderOpen(false)}
+              columns={sheetData[0] || []}
+              onSave={(config) => saveChart(selectedModel.id, activeSheet, config)}
             />
           </>
         ) : (

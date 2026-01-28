@@ -117,6 +117,23 @@ export const FileSystemProvider = ({ children }) => {
     });
   };
 
+  const saveChart = (modelId, sheetName, chartConfig) => {
+    setManifest(prev => {
+      const newManifest = JSON.parse(JSON.stringify(prev || {}));
+      
+      // Ensure path exists
+      if (!newManifest.visualizations) newManifest.visualizations = {};
+      if (!newManifest.visualizations[modelId]) newManifest.visualizations[modelId] = {};
+      if (!newManifest.visualizations[modelId][sheetName]) newManifest.visualizations[modelId][sheetName] = [];
+      
+      // Add the chart
+      newManifest.visualizations[modelId][sheetName].push(chartConfig);
+      
+      console.log("📊 Chart Saved:", newManifest);
+      return newManifest;
+    });
+  };
+
   const disconnect = () => {
     setRootHandle(null);
     setVlmHandle(null);
@@ -137,7 +154,8 @@ export const FileSystemProvider = ({ children }) => {
       rootHandle, vlmHandle, folderName, models, isScanning, 
       connectDirectory, disconnect, 
       selectedModel, openModel, closeModel, 
-      manifest, selectVlmFile, createVlmFile, updateManifest 
+      manifest, selectVlmFile, createVlmFile, updateManifest,
+      saveChart
     }}>
       {children}
     </FileSystemContext.Provider>
