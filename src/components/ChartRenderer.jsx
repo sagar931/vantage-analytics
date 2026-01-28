@@ -8,7 +8,6 @@ import {
 const formatExcelDate = (serial) => {
    // Excel dates (approx years 1990-2050) fall between 30,000 and 60,000
    if (typeof serial === 'number' && serial > 35000 && serial < 60000) {
-      // Excel base date delta
       const date = new Date((serial - 25569) * 86400 * 1000);
       return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); // "Jan 26"
    }
@@ -25,27 +24,44 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
   // Coordinates for the line
   const sin = Math.sin(-midAngle * RADIAN);
   const cos = Math.cos(-midAngle * RADIAN);
-  const sx = cx + (outerRadius + 5) * cos;
-  const sy = cy + (outerRadius + 5) * sin;
-  const mx = cx + (outerRadius + 20) * cos;
-  const my = cy + (outerRadius + 20) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 15; // Horizontal extension
+  const sx = cx + (outerRadius + 2) * cos;
+  const sy = cy + (outerRadius + 2) * sin;
+  const mx = cx + (outerRadius + 15) * cos;
+  const my = cy + (outerRadius + 15) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 10; 
   const ey = my;
   const textAnchor = cos >= 0 ? 'start' : 'end';
 
   return (
     <g>
-      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={stroke} fill="none" opacity={0.6} />
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={stroke} fill="none" opacity={0.5} />
       <circle cx={ex} cy={ey} r={2} fill={stroke} stroke="none" />
-      <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} textAnchor={textAnchor} fill="#94a3b8" fontSize={11} dominantBaseline="central">
-        {name}: {value}
+      <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} textAnchor={textAnchor} fill="#94a3b8" fontSize={11} dominantBaseline="central">
+        {name}
+      </text>
+      <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey + 12} textAnchor={textAnchor} fill="#fff" fontSize={11} fontWeight="bold" dominantBaseline="central">
+        {value}
       </text>
     </g>
   );
 };
 
 const ChartRenderer = ({ config, data }) => {
-  const { title, type, xAxis, dataKeys, colors, threshold } = config;
+  const { title, type, xAxis, dataKeys: configDataKeys, colors, threshold } = config;
+
+  // --- AUTO-FIX: GHOST LEGEND REMOVER ---
+  // Filter out keys that don't exist in the current sheet's data.
+  // This solves the issue where "Report" and "Value" appear on sheets that don't have them.
+  const availableKeys = data && data.length > 0 ? Object.keys(data[0]) : [];
+  const validDataKeys = configDataKeys.filter(k => availableKeys.includes(k));
+  
+  // If filtering removed everything (rare edge case), fallback to config to avoid crash
+  const activeDataKeys = validDataKeys.length > 0 ? validDataKeys : configDataKeys;
+
+  // CALCULATE TOTAL FOR DONUT CENTER
+  const totalValue = type === 'donut' 
+    ? data.reduce((sum, item) => sum + (Number(item[activeDataKeys[0]]) || 0), 0)
+    : 0;
 
   // RENDER: DONUT CHART (Aesthetic Upgrade)
   if (type === 'donut') {
@@ -54,8 +70,9 @@ const ChartRenderer = ({ config, data }) => {
         <h4 className="text-sm font-bold text-slate-300 mb-4 px-2 border-l-4 border-purple-500">{title}</h4>
         <div className="flex-1 w-full min-h-0 relative">
            {/* Center Text */}
-           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-slate-600 text-xs font-mono opacity-50">TOTAL</span>
+           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-2">
+              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total</span>
+              <span className="text-white text-2xl font-bold">{totalValue.toLocaleString()}</span>
            </div>
            
            <ResponsiveContainer width="100%" height="100%">
@@ -64,10 +81,11 @@ const ChartRenderer = ({ config, data }) => {
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={65} // Thin Donut
-                outerRadius={80}
+                innerRadius={70} 
+                outerRadius={85}
                 paddingAngle={4}
-                dataKey={dataKeys[0]} 
+                cornerRadius={5} // Rounded Ends
+                dataKey={activeDataKeys[0]} 
                 nameKey={xAxis}      
                 label={(props) => renderCustomizedLabel({ ...props, stroke: colors[props.index % colors.length] })}
                 labelLine={false}
@@ -76,10 +94,10 @@ const ChartRenderer = ({ config, data }) => {
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} stroke="rgba(0,0,0,0)" />
                 ))}
               </Pie>
-              {/* Tooltip for precise data */}
               <Tooltip 
-                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px' }}
+                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px', fontSize: '12px' }}
                  itemStyle={{ color: '#fff' }}
+                 separator=": "
               />
             </PieChart>
           </ResponsiveContainer>
@@ -97,7 +115,7 @@ const ChartRenderer = ({ config, data }) => {
       
       <div className="flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} barGap={6}>
+          <ComposedChart data={data} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
             <XAxis 
               dataKey={xAxis} 
@@ -106,7 +124,6 @@ const ChartRenderer = ({ config, data }) => {
               tickLine={false} 
               axisLine={false}
               dy={10}
-              // FIX: Auto-Format Excel Dates
               tickFormatter={formatExcelDate} 
             />
             <YAxis 
@@ -120,7 +137,7 @@ const ChartRenderer = ({ config, data }) => {
               cursor={{ fill: '#1e293b', opacity: 0.4 }}
               contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px' }}
               itemStyle={{ color: '#fff' }}
-              labelFormatter={formatExcelDate} // Format Date in Tooltip too
+              labelFormatter={formatExcelDate}
             />
             
             {threshold && (
@@ -132,11 +149,14 @@ const ChartRenderer = ({ config, data }) => {
                />
             )}
 
-            <Legend wrapperStyle={{ paddingTop: '15px' }} iconType="circle" />
+            {/* Only render Legend if we have valid keys */}
+            {activeDataKeys.length > 0 && (
+                <Legend wrapperStyle={{ paddingTop: '15px' }} iconType="circle" />
+            )}
             
-            {dataKeys.map((key, index) => {
-              // Threshold Red Logic (Single Bar)
-              if (type === 'bar' && threshold && dataKeys.length === 1) {
+            {activeDataKeys.map((key, index) => {
+              // Single Bar Threshold Logic
+              if (type === 'bar' && threshold && activeDataKeys.length === 1) {
                 return (
                   <Bar key={key} dataKey={key} barSize={40} radius={[4, 4, 0, 0]}>
                     {data.map((entry, index) => (
@@ -158,7 +178,8 @@ const ChartRenderer = ({ config, data }) => {
                   fill={colors[index % colors.length]}
                   stroke={colors[index % colors.length]}
                   fillOpacity={type === 'area' ? 0.2 : 0.8}
-                  barSize={dataKeys.length > 1 ? 12 : 40} // Thinner bars for Side-by-Side
+                  // Auto-size: If multiple bars, make them thinner (16px) to fit side-by-side
+                  barSize={activeDataKeys.length > 1 ? 16 : 40} 
                   strokeWidth={3}
                   radius={[4, 4, 0, 0]}
                   dot={{ r: 4, strokeWidth: 2 }}
