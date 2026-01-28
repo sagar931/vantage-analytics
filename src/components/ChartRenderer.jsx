@@ -110,7 +110,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
          <h3 className="text-white font-bold mb-3 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm flex-shrink-0">
             {config.title || 'Data Table'}
          </h3>
-         <div className="flex-1 overflow-auto rounded-lg border border-slate-800 bg-slate-900/50 custom-scrollbar">
+         <div className="flex-1 overflow-auto rounded-lg border border-slate-800 bg-slate-900/50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"></div>
             <table className="w-full text-left text-sm border-collapse">
                <thead className="sticky top-0 bg-slate-900 z-10 shadow-lg shadow-slate-950/50">
                   <tr>
@@ -142,7 +142,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                </tbody>
             </table>
          </div>
-      </div>
     );
   }
 

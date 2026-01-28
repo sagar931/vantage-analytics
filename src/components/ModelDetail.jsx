@@ -617,6 +617,28 @@ const getColumnWidth = (index) => {
     return null;
   };
 
+  // --- NEW: DYNAMIC HEIGHT CALCULATION ---
+  const currentCharts = manifest?.visualizations?.[selectedModel?.id]?.[activeSheet] || [];
+  
+  // Find the lowest widget (Y position + Height)
+  // Find the lowest widget (Y position + Height)
+  const bottomMostRow = currentCharts.reduce((max, chart, idx) => {
+     // FIX: Use the same default layout logic as the render loop
+     // This ensures new charts (without saved layout) are counted in height
+     const defaultLayout = { 
+        y: Math.floor(idx / 2) * 7, // Matches your loop's default row spacing
+        h: 6 
+     };
+     const layout = chart.layout || defaultLayout;
+     return Math.max(max, layout.y + layout.h);
+  }, 0);
+
+  // Calculate pixels: (Rows * (RowHeight + Margin)) + Extra Buffer
+  // FIX: Increased buffer from 400 to 1200 to give "Infinite Scroll" feel when dragging down
+  const ROW_HEIGHT = 60;
+  const MARGIN = 16;
+  const dynamicHeight = Math.max(2000, (bottomMostRow * (ROW_HEIGHT + MARGIN)) + 1200);
+
   return (
     <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative">
       
@@ -1185,9 +1207,10 @@ const getColumnWidth = (index) => {
                   {/* Canvas (Relative for Drag & Drop & Auto-Fit) */}
                   {/* Canvas (Relative for Drag & Drop & Auto-Fit) */}
                   <div 
-                    ref={canvasRef} 
-                    className="relative min-h-[1200px] w-full bg-slate-950/50 rounded-xl border border-slate-800/50 overflow-hidden"
-                  >
+                      ref={canvasRef} 
+                      className="relative w-full bg-slate-950/50 rounded-xl border border-slate-800/50 transition-all duration-300 ease-out"
+                      style={{ height: `${dynamicHeight}px` }}
+                    >
                     {/* 1. Visual Grid Lines (Only in Edit Mode) */}
                     {!isPresentationMode && (
                        <div className="absolute inset-0 pointer-events-none opacity-10" 
