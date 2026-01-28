@@ -572,8 +572,14 @@ const getColumnWidth = (index) => {
   const getStickyLeft = (index) => {
     let left = 0;
     if (showRowNumbers) left += ROW_NUM_WIDTH;
+    
+    // Only add widths of visible columns before this index
+    const headers = sheetData[0] || [];
     for (let i = 0; i < index; i++) {
-      left += getColumnWidth(i);
+      // Skip hidden columns in the calculation
+      if (!hiddenColumns.includes(headers[i])) {
+        left += getColumnWidth(i);
+      }
     }
     return left;
   };
@@ -1092,10 +1098,17 @@ const getColumnWidth = (index) => {
                                         cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700"
                                       )}
                                       style={{
-                                        backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
                                         ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
                                         width: getColumnWidth(cellIndex),
-                                        ...style
+                                        ...style,
+                                        // Force solid background on frozen columns - convert rgba to opaque
+                                        ...(cellIndex < frozenColCount && {
+                                          backgroundColor: style?.backgroundColor 
+                                            ? (style.backgroundColor.includes('rgba') 
+                                                ? style.backgroundColor.replace(/,\s*[\d.]+\)/, ', 1)')
+                                                : style.backgroundColor)
+                                            : BG_COLOR
+                                        })
                                       }}
                                     >
                                       {isEditMode ? (
