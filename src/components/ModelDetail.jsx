@@ -140,17 +140,22 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
        left: gridRect.x * (colWidthPixel + MARGIN),
        top: gridRect.y * (ROW_HEIGHT + MARGIN),
        width: gridRect.w * (colWidthPixel + MARGIN) - MARGIN,
-       height: gridRect.h * (ROW_HEIGHT + MARGIN) - MARGIN,
-       transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-       zIndex: showPalette ? 60 : 10 // Bring to front when picking color
+       height: gridRect.h * (ROW_HEIGHT + MARGIN) - MARGIN,       
+       transition: (isDragging || isResizing) ? 'none' : 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+       zIndex: isDragging || isResizing ? 100 : (showPalette ? 60 : 10) // Bring to front when dragging
+
     };
   };
 
   const snapToGrid = (pxRect) => {
-    const x = Math.round(pxRect.x / (colWidthPixel + MARGIN));
-    const y = Math.round(pxRect.y / (ROW_HEIGHT + MARGIN));
-    const w = Math.max(2, Math.round(pxRect.w / (colWidthPixel + MARGIN))); 
-    const h = Math.max(3, Math.round(pxRect.h / (ROW_HEIGHT + MARGIN))); 
+    // Calculate grid position from pixel position
+    const x = Math.max(0, Math.round(pxRect.x / (colWidthPixel + MARGIN)));
+    const y = Math.max(0, Math.round(pxRect.y / (ROW_HEIGHT + MARGIN)));
+    
+    // Calculate width/height in grid units from pixel dimensions
+    const w = Math.max(2, Math.round((pxRect.w + MARGIN) / (colWidthPixel + MARGIN))); 
+    const h = Math.max(3, Math.round((pxRect.h + MARGIN) / (ROW_HEIGHT + MARGIN))); 
+    
     return { x, y, w, h };
   };
 
@@ -173,11 +178,21 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
       }
     };
 
-    const handleMouseUp = () => {
+  const handleMouseUp = () => {
       if (isDragging || isResizing) {
         const finalGrid = snapToGrid(pixelRect);
+        
+        // --- FIX: BETTER BOUNDS CHECKING ---
+        // 1. Clamp X (Left Edge)
         if (finalGrid.x < 0) finalGrid.x = 0;
-        if (finalGrid.x + finalGrid.w > COLS) finalGrid.x = COLS - finalGrid.w;
+
+        // 2. Clamp Width (Right Edge) 
+        // Instead of moving X, we limit the Width so it fits within 12 columns
+        if (finalGrid.x + finalGrid.w > COLS) {
+            finalGrid.w = Math.max(2, COLS - finalGrid.x);
+        }
+
+        // 3. Clamp Y (Top Edge)
         if (finalGrid.y < 0) finalGrid.y = 0;
 
         setGridRect(finalGrid);
@@ -187,7 +202,6 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
         if (onLayoutChange) onLayoutChange(finalGrid);
       }
     };
-
     if (isDragging || isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -196,16 +210,27 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, pixelRect, colWidthPixel]);
+  }, [isDragging, isResizing, pixelRect, colWidthPixel, onLayoutChange]);
 
-  // Sync external layout changes
-  useEffect(() => { if (!isDragging && !isResizing && layout) setGridRect(layout); }, [layout]);
+// Sync external layout changes - ONLY update when layout prop actually changes
+  const layoutRef = useRef(layout);
+  useEffect(() => { 
+    const layoutChanged = JSON.stringify(layoutRef.current) !== JSON.stringify(layout);
+    if (!isDragging && !isResizing && layout && layoutChanged) {
+      setGridRect(layout);
+      layoutRef.current = layout;
+    }
+  }, [layout, isDragging, isResizing]);
 
   if (!containerWidth) return null; 
 
   return (
     <div 
-      className={clsx("absolute flex flex-col bg-slate-900 border rounded-xl shadow-2xl", isDragging ? "border-blue-500 shadow-blue-900/50 cursor-grabbing" : "border-slate-800 transition-all")}
+      className={clsx("absolute flex flex-col bg-slate-900 border rounded-xl shadow-2xl", 
+        isDragging ? "border-blue-500 shadow-blue-900/50 cursor-grabbing" : 
+        isResizing ? "border-blue-500 shadow-blue-900/50" :
+        "border-slate-800 transition-all"
+      )}
       style={getPixelStyle()}
     >
       {isEditing && (
@@ -218,7 +243,12 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
                dragStartRef.current = { x: e.clientX, y: e.clientY }; 
                const rect = e.currentTarget.parentElement.getBoundingClientRect();
                const parent = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
-               initialPixelRef.current = { x: rect.left - parent.left, y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop, w: rect.width, h: rect.height };
+               initialPixelRef.current = { 
+                 x: rect.left - parent.left, 
+                 y: rect.top - parent.top, 
+                 w: rect.width, 
+                 h: rect.height 
+               };
                setPixelRect(initialPixelRef.current);
             }}
          >
@@ -259,7 +289,12 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
                dragStartRef.current = { x: e.clientX, y: e.clientY }; 
                const rect = e.currentTarget.parentElement.getBoundingClientRect();
                const parent = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
-               initialPixelRef.current = { x: rect.left - parent.left, y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop, w: rect.width, h: rect.height };
+               initialPixelRef.current = { 
+                 x: rect.left - parent.left, 
+                 y: rect.top - parent.top, 
+                 w: rect.width, 
+                 h: rect.height 
+               };
                setPixelRect(initialPixelRef.current);
             }}
          >
@@ -1062,11 +1097,12 @@ const ModelDetail = () => {
                   </div>
 
                   {/* Canvas (Relative for Drag & Drop & Auto-Fit) */}
+                  {/* Canvas (Relative for Drag & Drop & Auto-Fit) */}
                   <div 
-                    ref={canvasRef} // <--- IMPORTANT: Measures width for Auto-Fit
+                    ref={canvasRef} 
                     className="relative min-h-[1200px] w-full bg-slate-950/50 rounded-xl border border-slate-800/50 overflow-hidden"
                   >
-                    {/* Optional: Visual Grid Lines for editing */}
+                    {/* 1. Visual Grid Lines (Only in Edit Mode) */}
                     {!isPresentationMode && (
                        <div className="absolute inset-0 pointer-events-none opacity-10" 
                             style={{ 
@@ -1076,36 +1112,28 @@ const ModelDetail = () => {
                        />
                     )}
                     
-                    {manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.map((chartConfig, idx) => (
-                      <DraggableWidget
-                        key={idx}
-                        layout={chartConfig.layout} 
-                        containerWidth={canvasWidth} // <--- IMPORTANT: Passes width to widget
-                        isEditing={!isPresentationMode} 
-                        onDelete={() => setChartToDelete(idx)}
-                        onLayoutChange={(newLayout) => {
-                           const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
-                           currentCharts[idx] = { ...currentCharts[idx], layout: newLayout };
-                           updateManifest(selectedModel.id, activeSheet, currentCharts);
-                        }}
-                      >
-                         <div className="w-full h-full pointer-events-none select-none">
-                            <ChartRenderer config={chartConfig} data={sheetData.slice(1).map(row => { const obj = {}; sheetData[0].forEach((key, i) => obj[key] = row[i]); return obj; })} />
-                         </div>
-                      </DraggableWidget>
-                    ))}
-                    
-                    {/* Empty State */}
+                    {/* 2. WIDGET RENDER LOOP (Single, Corrected Loop) */}
                     {manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.map((chartConfig, idx) => {
                       
-                      // FIX STACKING: Calculate Smart Default if layout is missing
-                      // 2 columns wide grid (Index 0->(0,0), Index 1->(6,0), Index 2->(0,6)...)
-                      const effectiveLayout = chartConfig.layout || { 
-                         x: (idx % 2) * 6, 
-                         y: Math.floor(idx / 2) * 6, 
-                         w: 6, 
-                         h: 6 
+                      // A. Default Layout - All charts same size, just positioned to avoid overlap
+                      // User can freely resize/reposition any chart
+                      const getDefaultLayout = (index) => {
+                        // All charts: same size (half-width), positioned in 2-column grid
+                        return { 
+                          x: (index % 2) * 6,           // Alternate between left (0) and right (6)
+                          y: Math.floor(index / 2) * 7, // New row every 2 charts, with 1 row gap
+                          w: 6,                         // All charts default to half-width
+                          h: 6                          // All charts default to same height
+                        };
                       };
+                      
+                      const effectiveLayout = chartConfig.layout || getDefaultLayout(idx);
+                      
+
+                      // B. Extract Active Color
+                      const activeColor = chartConfig.colors && chartConfig.colors.length > 0 
+                                          ? chartConfig.colors[0] 
+                                          : '#3b82f6';
 
                       return (
                         <DraggableWidget
@@ -1113,31 +1141,41 @@ const ModelDetail = () => {
                           layout={effectiveLayout} 
                           containerWidth={canvasWidth}
                           isEditing={!isPresentationMode} 
+                          activeColor={activeColor} // <--- Fix: Pass color to Widget UI
                           onDelete={() => setChartToDelete(idx)}
-                          // Handle Layout Save
+                          
+                          // C. Handle Layout Save
                           onLayoutChange={(newLayout) => {
                              const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
                              currentCharts[idx] = { ...currentCharts[idx], layout: newLayout };
                              updateManifest(selectedModel.id, activeSheet, currentCharts);
                           }}
-                          // Handle Color Save
+                          
+                          // D. Handle Color Save
                           onColorChange={(newColor) => {
                              const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
-                             // We save the color into a new 'colors' array property on the config
                              currentCharts[idx] = { ...currentCharts[idx], colors: [newColor] }; 
                              updateManifest(selectedModel.id, activeSheet, currentCharts);
                           }}
                         >
                            <div className="w-full h-full pointer-events-none select-none">
-                              {/* Pass the custom color to the renderer */}
+                              {/* E. Render Chart with Color */}
                               <ChartRenderer 
-                                 config={{ ...chartConfig, colors: chartConfig.colors || ['#3b82f6'] }} 
+                                 config={{ ...chartConfig, colors: [activeColor] }} 
                                  data={sheetData.slice(1).map(row => { const obj = {}; sheetData[0].forEach((key, i) => obj[key] = row[i]); return obj; })} 
                               />
                            </div>
                         </DraggableWidget>
                       );
                     })}
+                    
+                    {/* 3. EMPTY STATE (Restored) */}
+                    {(!manifest?.visualizations?.[selectedModel.id]?.[activeSheet] || manifest.visualizations[selectedModel.id][activeSheet].length === 0) && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <BarChart3 className="w-12 h-12 text-slate-800 mb-4" />
+                        <p className="text-slate-600 font-medium">No charts defined. Create a new widget to begin.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
