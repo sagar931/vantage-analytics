@@ -6,7 +6,11 @@ import RuleBuilder from './RuleBuilder';
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
   ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, 
-  Edit3, Save, Snowflake, Ruler, Layout, Maximize, Scan
+  Edit3, Save, Snowflake, Ruler, 
+  // View Modes
+  Layout, Maximize, Scan, 
+  // Column Manager
+  Eye, EyeOff, CheckSquare, Square
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -33,6 +37,10 @@ const ModelDetail = () => {
   const [showRowNumbers, setShowRowNumbers] = useState(false);
   const [frozenColCount, setFrozenColCount] = useState(0);     
   const [selectedColIndex, setSelectedColIndex] = useState(null); 
+
+  // --- ADD THESE MISSING LINES BELOW ---
+  const [hiddenColumns, setHiddenColumns] = useState([]); // Needed to fix your error
+  const [isColManagerOpen, setIsColManagerOpen] = useState(false); // Needed for the dropdown
 
   // Constants
   const COLUMN_WIDTH = 192; // 12rem
@@ -117,6 +125,17 @@ const ModelDetail = () => {
         setFrozenColCount(selectedColIndex + 1);
       }
     }
+  };
+
+  // NEW: Toggle Column Visibility
+  const toggleColumnVisibility = (colName) => {
+    setHiddenColumns(prev => {
+      if (prev.includes(colName)) {
+        return prev.filter(c => c !== colName); // Unhide
+      } else {
+        return [...prev, colName]; // Hide
+      }
+    });
   };
 
   const getStickyLeft = (index) => {
@@ -312,65 +331,70 @@ const ModelDetail = () => {
         {activeFile ? (
           <>
             {/* Toolbar */}
+            {/* Toolbar */}
             {!isPresentationMode && (
-              <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end gap-1 overflow-x-auto pt-2">
-                 {workbookData?.sheetNames.map(sheet => (
-                   <button
-                     key={sheet}
-                     onClick={() => handleSheetSwitch(sheet)}
-                     className={clsx(
-                       "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative",
-                       activeSheet === sheet 
-                         ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10" 
-                         : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-                   )}
-                   >
-                     {sheet}
-                     {activeSheet === sheet && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>}
-                   </button>
-                 ))}
-                 <div className="flex-1"></div>
-                 <div className="pb-2 flex gap-2">
-                   <button 
-                     onClick={() => setShowRowNumbers(!showRowNumbers)}
-                     className={clsx(
-                       "p-1.5 rounded transition-colors border",
-                       showRowNumbers ? "bg-purple-600 border-purple-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white"
+              <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end justify-between pt-2 relative z-50">
+                 
+                 {/* 1. SCROLLABLE TABS (Wrapped so they scroll without clipping the dropdowns) */}
+                 <div className="flex items-end gap-1 overflow-x-auto custom-scrollbar flex-1 mr-4">
+                   {workbookData?.sheetNames.map(sheet => (
+                     <button 
+                       key={sheet} 
+                       onClick={() => handleSheetSwitch(sheet)} 
+                       className={clsx(
+                         "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative whitespace-nowrap", // Added whitespace-nowrap
+                         activeSheet === sheet ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10" : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+                       )}
+                     >
+                       {sheet}
+                       {activeSheet === sheet && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>}
+                     </button>
+                   ))}
+                 </div>
+
+                 {/* 2. FIXED CONTROLS (No overflow clipping here!) */}
+                 <div className="pb-2 flex gap-2 items-center flex-shrink-0">
+                   
+                   {/* COLUMN MANAGER BUTTON */}
+                   <div className="relative inline-block">
+                     <button 
+                       onClick={() => setIsColManagerOpen(!isColManagerOpen)}
+                       className={clsx("p-1.5 rounded transition-colors border mr-2", isColManagerOpen || hiddenColumns.length > 0 ? "bg-blue-600 border-blue-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white")}
+                       title="Hide/Show Columns"
+                     >
+                       {hiddenColumns.length > 0 ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                     </button>
+                     
+                     {/* DROPDOWN MENU */}
+                     {isColManagerOpen && (
+                       <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[100] p-4">
+                          <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Toggle Visibility</h4>
+                          <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1">
+                            {sheetData[0]?.map((col, idx) => (
+                              <button 
+                                key={idx}
+                                onClick={() => toggleColumnVisibility(col)}
+                                className="w-full flex items-center justify-between text-left px-2 py-1.5 hover:bg-slate-800 rounded text-sm text-slate-300"
+                              >
+                                <span className="truncate w-40">{col || `Col ${idx+1}`}</span>
+                                {hiddenColumns.includes(col) ? <Square className="w-4 h-4 text-slate-600" /> : <CheckSquare className="w-4 h-4 text-blue-500" />}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between">
+                             <button onClick={() => setHiddenColumns([])} className="text-xs text-blue-400 hover:text-blue-300">Show All</button>
+                             <button onClick={() => setIsColManagerOpen(false)} className="text-xs text-slate-500 hover:text-slate-300">Close</button>
+                          </div>
+                       </div>
                      )}
-                     title="Toggle Row Numbers"
-                   >
-                     <Ruler className="w-4 h-4"/>
-                   </button>
-                   <button 
-                     onClick={handleFreeze}
-                     disabled={selectedColIndex === null}
-                     className={clsx(
-                       "p-1.5 rounded transition-colors border flex items-center gap-1",
-                       frozenColCount > 0 ? "bg-blue-600 border-blue-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white",
-                       selectedColIndex === null && "opacity-50 cursor-not-allowed"
-                     )}
-                     title="Freeze up to selected column"
-                   >
-                     <Snowflake className="w-4 h-4"/>
-                     {selectedColIndex !== null && <span className="text-[10px] font-bold">{selectedColIndex + 1}</span>}
-                   </button>
+                   </div>
+
+                   <button onClick={() => setShowRowNumbers(!showRowNumbers)} className={clsx("p-1.5 rounded transition-colors border", showRowNumbers ? "bg-purple-600 border-purple-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white")}><Ruler className="w-4 h-4"/></button>
+                   <button onClick={handleFreeze} disabled={selectedColIndex === null} className={clsx("p-1.5 rounded transition-colors border flex items-center gap-1", frozenColCount > 0 ? "bg-blue-600 border-blue-500 text-white" : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white", selectedColIndex === null && "opacity-50 cursor-not-allowed")}><Snowflake className="w-4 h-4"/>{selectedColIndex !== null && <span className="text-[10px] font-bold">{selectedColIndex + 1}</span>}</button>
                    <div className="w-px h-6 bg-slate-700 mx-1"></div>
-                   <button 
-                     onClick={() => setIsEditMode(!isEditMode)}
-                     className={clsx(
-                       "flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors border",
-                       isEditMode ? "bg-amber-600 border-amber-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
-                     )}
-                   >
-                     {isEditMode ? <><Save className="w-3 h-3"/> Done Editing</> : <><Edit3 className="w-3 h-3"/> Edit Data</>}
-                   </button>
+                   <button onClick={() => setIsEditMode(!isEditMode)} className={clsx("flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors border", isEditMode ? "bg-amber-600 border-amber-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white")}>{isEditMode ? <><Save className="w-3 h-3"/></> : <><Edit3 className="w-3 h-3"/></>}</button>
                    <div className="w-px h-6 bg-slate-700 mx-1"></div>
-                   <button 
-                     onClick={() => setIsRuleModalOpen(true)}
-                     className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
-                   >
-                     <Filter className="w-3 h-3" /> Add Rule
-                   </button>
+                   <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"><Filter className="w-3 h-3" /> Add Rule</button>
                  </div>
               </div>
             )}
@@ -464,29 +488,29 @@ const ModelDetail = () => {
                         {sheetData.slice(1).map((row, rowIndex) => {
                           const actualRowIndex = rowIndex + 1; // 0 is header, so data starts at 1
                           
-                          // 1. Construct Row Object
+                          // 1. Construct Row Object for Logic Engine
                           const rowObject = {};
                           sheetData[0].forEach((header, index) => {
                             rowObject[header] = row[index];
                           });
 
-                          // 2. FOCUS MODE LOGIC: Determine if row should be dimmed
+                          // 2. FOCUS MODE LOGIC: Check for Critical Issues
                           let isRowDimmed = false;
                           if (viewMode === 'focus') {
-                             // Check if any cell in this row has a "Warning" style (Red or Amber)
+                             // Scan every cell in this row
                              const hasAlert = row.some((cell, i) => {
                                 const colName = sheetData[0][i];
-                                // We safely call the engine to check the style
+                                // Get the calculated style for this cell
                                 const { style } = getCellStyle(
                                   cell, colName, rowObject, selectedModel.id, activeSheet, manifest
                                 );
-                                // Check for Red (239, 68, 68) or Amber (245, 158, 11) RGB values
+                                // Check if background color is Red or Amber (using the RGB values from logicEngine)
                                 return style?.backgroundColor && (
-                                  style.backgroundColor.includes('239, 68, 68') || 
-                                  style.backgroundColor.includes('245, 158, 11')
+                                  style.backgroundColor.includes('239, 68, 68') || // Red Alert
+                                  style.backgroundColor.includes('245, 158, 11')   // Amber Warning
                                 );
                              });
-                             // If no alert found, dim this row
+                             // If NO alert is found, we dim this row
                              isRowDimmed = !hasAlert;
                           }
 
@@ -495,12 +519,12 @@ const ModelDetail = () => {
                               key={rowIndex} 
                               className={clsx(
                                 "transition-all duration-500 group",
-                                // Apply Dimming: 20% opacity for noise, 50% on hover so you can still read it
+                                // THE MAGIC: Dim non-critical rows to 20%, but allow peek (50%) on hover
                                 isRowDimmed ? "opacity-20 grayscale hover:opacity-50" : "opacity-100 hover:bg-blue-900/10"
                               )}
                             >
                               
-                              {/* Row Number */}
+                              {/* Row Number Column */}
                               {showRowNumbers && (
                                 <td 
                                   className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500"
@@ -510,12 +534,18 @@ const ModelDetail = () => {
                                 </td>
                               )}
 
+                              {/* Data Cells */}
                               {row.map((cell, cellIndex) => {
-                                // CHECK FOR BODY MERGES
-                                const mergeProps = getMergeProps(actualRowIndex, cellIndex);
-                                if (mergeProps?.isHidden) return null; // Hide covered cells
-
                                 const columnName = sheetData[0][cellIndex];
+                                
+                                // Handle Hidden Columns
+                                if (hiddenColumns.includes(columnName)) return null; 
+
+                                // Handle Merges
+                                const mergeProps = getMergeProps(actualRowIndex, cellIndex);
+                                if (mergeProps?.isHidden) return null; 
+
+                                // Get Style
                                 const { className, style } = getCellStyle(
                                   cell, columnName, rowObject, selectedModel.id, activeSheet, manifest
                                 );
@@ -530,10 +560,10 @@ const ModelDetail = () => {
                                       className,
                                       isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
                                       
-                                      // Center if Merged
+                                      // Alignment Logic
                                       mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
 
-                                      // FROZEN LOGIC
+                                      // Frozen Column Logic
                                       cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
                                       cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
                                     )}
@@ -546,8 +576,8 @@ const ModelDetail = () => {
                                     {isEditMode ? (
                                       <input 
                                         type="text" 
-                                        defaultValue={cell}
-                                        onBlur={(e) => handleCellEdit(rowIndex, cellIndex, e.target.value)}
+                                        defaultValue={cell} 
+                                        onBlur={(e) => handleCellEdit(rowIndex, cellIndex, e.target.value)} 
                                         className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                                       />
                                     ) : (
