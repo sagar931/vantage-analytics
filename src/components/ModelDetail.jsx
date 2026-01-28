@@ -402,14 +402,15 @@ const ModelDetail = () => {
                    <button onClick={() => setIsEditMode(!isEditMode)} className={clsx("flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors border", isEditMode ? "bg-amber-600 border-amber-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white")}>{isEditMode ? <><Save className="w-3 h-3"/></> : <><Edit3 className="w-3 h-3"/></>}</button>
                    <div className="w-px h-6 bg-slate-700 mx-1"></div>
                    <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"><Filter className="w-3 h-3" /> Add Rule</button>
-                 </div>
-
-                {/* VIEW MODE TOGGLE - ICON ONLY */}
-                   <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 ml-2 h-full">
+                   
+                   <div className="w-px h-6 bg-slate-700 mx-1"></div>
+                   
+                   {/* VIEW MODE TOGGLE */}
+                   <div className="flex items-center bg-slate-800 rounded p-0.5 border border-slate-700">
                       <button 
                         onClick={() => setActiveTab('table')}
                         className={clsx(
-                          "p-1.5 rounded-md transition-all", 
+                          "p-1.5 rounded transition-all", 
                           activeTab === 'table' 
                             ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10" 
                             : "text-slate-400 hover:text-white hover:bg-slate-700/50"
@@ -421,7 +422,7 @@ const ModelDetail = () => {
                       <button 
                         onClick={() => setActiveTab('charts')}
                         className={clsx(
-                          "p-1.5 rounded-md transition-all", 
+                          "p-1.5 rounded transition-all", 
                           activeTab === 'charts' 
                             ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50" 
                             : "text-slate-400 hover:text-white hover:bg-slate-700/50"
@@ -431,7 +432,8 @@ const ModelDetail = () => {
                         <BarChart3 className="w-4 h-4" />
                       </button>
                    </div>
-                   
+                 </div>
+
               </div>
             )}
 
