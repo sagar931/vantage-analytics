@@ -2,17 +2,10 @@ import * as XLSX from 'xlsx';
 
 export const readExcelFile = async (fileHandle) => {
   try {
-    // 1. Get the actual File object from the handle
     const file = await fileHandle.getFile();
-    
-    // 2. Read into an ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
-    
-    // 3. Parse with SheetJS
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     
-    // 4. Return the list of Sheet Names and the Workbook object
-    // We don't parse rows yet to keep it fast. We only parse rows when a specific sheet is clicked.
     return {
       sheetNames: workbook.SheetNames,
       workbook: workbook,
@@ -26,6 +19,13 @@ export const readExcelFile = async (fileHandle) => {
 
 export const parseSheetData = (workbook, sheetName) => {
   const sheet = workbook.Sheets[sheetName];
-  // Convert sheet to JSON (Array of Arrays is best for preserving layout)
-  return XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  
+  // 1. Get Data
+  const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  
+  // 2. Get Merges (SheetJS stores them in the '!merges' property)
+  // Format: [ { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, ... ]
+  const merges = sheet['!merges'] || [];
+
+  return { data, merges };
 };

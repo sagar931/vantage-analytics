@@ -18,6 +18,7 @@ const ModelDetail = () => {
   const [workbookData, setWorkbookData] = useState(null);
   const [activeSheet, setActiveSheet] = useState(null);
   const [sheetData, setSheetData] = useState([]);
+  const [sheetMerges, setSheetMerges] = useState([]); // NEW: Store Merge Data
   const [isLoading, setIsLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
 
@@ -37,7 +38,6 @@ const ModelDetail = () => {
   const ROW_NUM_WIDTH = 64; 
   const BG_COLOR = '#0f172a'; // Slate 900 (Opaque)
 
-  // Group files by Year
   const filesByYear = selectedModel.files.reduce((acc, file) => {
     const year = file.period.slice(-4);
     if (!acc[year]) acc[year] = [];
@@ -53,7 +53,12 @@ const ModelDetail = () => {
       setWorkbookData(data);
       const firstSheet = data.sheetNames[0];
       setActiveSheet(firstSheet);
-      setSheetData(parseSheetData(data.workbook, firstSheet));
+      
+      // NEW: Extract data AND merges
+      const { data: rawData, merges } = parseSheetData(data.workbook, firstSheet);
+      setSheetData(rawData);
+      setSheetMerges(merges);
+      
       setFrozenColCount(0);
       setSelectedColIndex(null);
     } catch (error) {
@@ -66,7 +71,12 @@ const ModelDetail = () => {
   const handleSheetSwitch = (sheetName) => {
     if (!workbookData) return;
     setActiveSheet(sheetName);
-    setSheetData(parseSheetData(workbookData.workbook, sheetName));
+    
+    // NEW: Extract data AND merges
+    const { data: rawData, merges } = parseSheetData(workbookData.workbook, sheetName);
+    setSheetData(rawData);
+    setSheetMerges(merges);
+    
     setFrozenColCount(0);
   };
 
@@ -114,6 +124,34 @@ const ModelDetail = () => {
     if (showRowNumbers) left += ROW_NUM_WIDTH; 
     left += index * COLUMN_WIDTH; 
     return left;
+  };
+
+  // NEW: Helper to check if a cell is merged
+  const getMergeProps = (rowIndex, colIndex) => {
+    if (!sheetMerges || sheetMerges.length === 0) return null;
+
+    for (const merge of sheetMerges) {
+      // merge.s = start {c, r}, merge.e = end {c, r}
+      
+      // 1. Is this the Top-Left cell of a merge?
+      if (merge.s.r === rowIndex && merge.s.c === colIndex) {
+        return {
+          rowSpan: merge.e.r - merge.s.r + 1,
+          colSpan: merge.e.c - merge.s.c + 1,
+          isStart: true
+        };
+      }
+
+      // 2. Is this cell INSIDE a merge (but not the start)?
+      // It should be hidden.
+      if (
+        rowIndex >= merge.s.r && rowIndex <= merge.e.r &&
+        colIndex >= merge.s.c && colIndex <= merge.e.c
+      ) {
+        return { isHidden: true };
+      }
+    }
+    return null; // Not merged
   };
 
   return (
@@ -338,51 +376,57 @@ const ModelDetail = () => {
                   >
                     <table className="table-fixed min-w-full text-left border-collapse relative">
                       
-                      {/* HEADER - Z-Index Hierarchy: 60 (Frozen) > 50 (Sticky) */}
+                      {/* HEADER - Row Index 0 */}
                       <thead className="text-slate-400 uppercase sticky top-0 z-50 shadow-xl">
                         <tr>
                           {showRowNumbers && (
                              <th 
                                className="px-4 py-4 border-b border-r border-slate-700 font-bold sticky left-0 z-[60] text-center text-slate-500"
-                               style={{ width: ROW_NUM_WIDTH, minWidth: ROW_NUM_WIDTH, backgroundColor: BG_COLOR }} // FIXED: Opaque BG
+                               style={{ width: ROW_NUM_WIDTH, minWidth: ROW_NUM_WIDTH, backgroundColor: BG_COLOR }}
                              >
                                #
                              </th>
                           )}
 
-                          {sheetData[0]?.map((head, i) => (
-                            <th 
-                              key={i} 
-                              // FIX 1: Toggle Selection Logic
-                              onClick={() => setSelectedColIndex(selectedColIndex === i ? null : i)}
-                              className={clsx(
-                                "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
-                                // Selection State Style (Visuals only, color handled in style prop below)
-                                selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
-                                isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
-                                
-                                // FROZEN LOGIC - HEADER
-                                i < frozenColCount && "sticky z-[60] border-r border-slate-700",
-                                i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
-                              )}
-                              style={{ 
-                                width: COLUMN_WIDTH, 
-                                minWidth: COLUMN_WIDTH,
-                                // FIX 2: Use SOLID Hex Colors (No RGBA)
-                                // #172554 is a solid dark blue (Blue-950) that matches your theme but is OPAQUE.
-                                backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
-                                ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
-                              }}
-                            >
-                              {head || `Col ${i+1}`}
-                            </th>
-                          ))}
+                          {sheetData[0]?.map((head, i) => {
+                            // CHECK FOR HEADER MERGES (Row 0)
+                            const mergeProps = getMergeProps(0, i);
+                            if (mergeProps?.isHidden) return null; // Hide covered cells
+
+                            return (
+                              <th 
+                                key={i} 
+                                onClick={() => setSelectedColIndex(selectedColIndex === i ? null : i)}
+                                colSpan={mergeProps?.colSpan || 1}
+                                rowSpan={mergeProps?.rowSpan || 1}
+                                className={clsx(
+                                  "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
+                                  selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
+                                  isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
+                                  
+                                  // FROZEN LOGIC
+                                  i < frozenColCount && "sticky z-[60] border-r border-slate-700",
+                                  i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
+                                )}
+                                style={{ 
+                                  width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
+                                  minWidth: (mergeProps?.colSpan || 1) * COLUMN_WIDTH,
+                                  backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
+                                  ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
+                                }}
+                              >
+                                {head || `Col ${i+1}`}
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
 
-                      {/* BODY - Z-Index Hierarchy: 40 (Frozen) > 0 (Normal) */}
+                      {/* BODY - Row Index 1+ */}
                       <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
                         {sheetData.slice(1).map((row, rowIndex) => {
+                          const actualRowIndex = rowIndex + 1; // 0 is header, so data starts at 1
+                          
                           const rowObject = {};
                           sheetData[0].forEach((header, index) => {
                             rowObject[header] = row[index];
@@ -391,17 +435,21 @@ const ModelDetail = () => {
                           return (
                             <tr key={rowIndex} className="hover:bg-blue-900/10 transition-colors group">
                               
-                              {/* Row Number Cell */}
+                              {/* Row Number */}
                               {showRowNumbers && (
                                 <td 
                                   className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500"
-                                  style={{ backgroundColor: BG_COLOR }} // FIXED: Opaque BG
+                                  style={{ backgroundColor: BG_COLOR }}
                                 >
-                                  {rowIndex + 1}
+                                  {actualRowIndex + 1}
                                 </td>
                               )}
 
                               {row.map((cell, cellIndex) => {
+                                // CHECK FOR BODY MERGES
+                                const mergeProps = getMergeProps(actualRowIndex, cellIndex);
+                                if (mergeProps?.isHidden) return null; // Hide covered cells
+
                                 const columnName = sheetData[0][cellIndex];
                                 const { className, style } = getCellStyle(
                                   cell, columnName, rowObject, selectedModel.id, activeSheet, manifest
@@ -410,17 +458,18 @@ const ModelDetail = () => {
                                 return (
                                   <td 
                                     key={cellIndex} 
+                                    colSpan={mergeProps?.colSpan || 1}
+                                    rowSpan={mergeProps?.rowSpan || 1}
                                     className={clsx(
-                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors truncate",
+                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors truncate align-top",
                                       className,
                                       isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
                                       
-                                      // FROZEN LOGIC - CELLS
+                                      // FROZEN LOGIC
                                       cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
                                       cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
                                     )}
                                     style={{
-                                      // FIXED: Use inline style for background to ensure opacity
                                       backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
                                       ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
                                       ...style
