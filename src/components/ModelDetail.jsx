@@ -48,6 +48,7 @@ const ModelDetail = () => {
   // Add this near other states
   const [activeTab, setActiveTab] = useState('table'); // 'table' | 'charts'
   const [isChartBuilderOpen, setIsChartBuilderOpen] = useState(false);
+  const [chartToDelete, setChartToDelete] = useState(null); 
 
   // Constants
   const COLUMN_WIDTH = 192; // 12rem
@@ -403,29 +404,27 @@ const ModelDetail = () => {
                    <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"><Filter className="w-3 h-3" /> Add Rule</button>
                  </div>
 
-                {/* VIEW MODE TOGGLE - FIXED AESTHETICS */}
-                   <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 mr-3 h-8">
+                {/* VIEW MODE TOGGLE - ALIGNMENT FIX */}
+                   <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 ml-2">
                       <button 
                         onClick={() => setActiveTab('table')}
                         className={clsx(
-                          "flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-bold transition-all", 
+                          "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all", 
                           activeTab === 'table' 
                             ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10" 
                             : "text-slate-400 hover:text-white hover:bg-slate-700/50"
                         )}
-                        title="Table View"
                       >
                         <Table className="w-3.5 h-3.5" /> <span className="hidden xl:inline">Table</span>
                       </button>
                       <button 
                         onClick={() => setActiveTab('charts')}
                         className={clsx(
-                          "flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-bold transition-all", 
+                          "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all", 
                           activeTab === 'charts' 
                             ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50" 
                             : "text-slate-400 hover:text-white hover:bg-slate-700/50"
                         )}
-                        title="Chart View"
                       >
                         <BarChart3 className="w-3.5 h-3.5" /> <span className="hidden xl:inline">Visuals</span>
                       </button>
@@ -608,15 +607,11 @@ const ModelDetail = () => {
                           })} 
                         />
                         
-                        {/* DELETE BUTTON (Only visible on hover, hidden in presentation) */}
+                        {/* DELETE BUTTON */}
                         {!isPresentationMode && (
                           <button 
-                            onClick={() => {
-                              if(window.confirm("Delete this chart?")) {
-                                removeChart(selectedModel.id, activeSheet, idx);
-                              }
-                            }}
-                            className="absolute top-4 right-4 p-2 bg-slate-800/80 backdrop-blur text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-slate-700"
+                            onClick={() => setChartToDelete(idx)} // <--- UPDATED: Triggers Modal
+                            className="absolute top-4 right-4 p-2 bg-slate-800/80 backdrop-blur text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-slate-700 shadow-sm"
                             title="Delete Widget"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -653,6 +648,36 @@ const ModelDetail = () => {
               columns={sheetData[0] || []}
               onSave={(config) => saveChart(selectedModel.id, activeSheet, config)}
             />
+            
+            {/* DELETE CONFIRMATION MODAL - CORRECTLY PLACED */}
+            {chartToDelete !== null && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-2xl max-w-sm w-full transform transition-all scale-100">
+                  <h3 className="text-lg font-bold text-white mb-2">Delete Widget?</h3>
+                  <p className="text-slate-400 text-sm mb-6">
+                    Are you sure you want to remove this chart? This action cannot be undone.
+                  </p>
+                  <div className="flex justify-end gap-3">
+                    <button 
+                      onClick={() => setChartToDelete(null)}
+                      className="px-4 py-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => {
+                        removeChart(selectedModel.id, activeSheet, chartToDelete);
+                        setChartToDelete(null);
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-red-900/20"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-600 bg-slate-950">
