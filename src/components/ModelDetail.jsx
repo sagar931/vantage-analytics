@@ -307,7 +307,7 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
 
 const ModelDetail = () => {
 
-  const { selectedModel, closeModel, manifest, updateManifest, saveChart, removeChart } = useFileSystem();
+  const { selectedModel, closeModel, manifest, updateManifest, saveChart, updateChart, removeChart } = useFileSystem()
   
   const canvasRef = useRef(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -562,13 +562,18 @@ const ModelDetail = () => {
       <div 
         className={clsx(
           "bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-in-out relative",
+          
           isSidebarCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-72 opacity-100"
         )}
       >
         <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-900 whitespace-nowrap">
-          <div className="flex items-center gap-2 text-cyan-400 font-bold tracking-tight text-lg">
-             <img src="/barclays_logo.png" alt="Barclays" className="h-8 w-auto object-contain"/>
-             <span>BARCLAYS</span>
+          <div className="flex items-center gap-2 font-bold tracking-tight text-lg text-[#00AEEF]">
+            <img
+              src="/barclays_logo.png"
+              alt="Barclays"
+              className="h-8 w-auto object-contain"
+            />
+            <span>BARCLAYS</span>
           </div>
         </div>
 
@@ -1146,16 +1151,12 @@ const ModelDetail = () => {
                           
                           // C. Handle Layout Save
                           onLayoutChange={(newLayout) => {
-                             const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
-                             currentCharts[idx] = { ...currentCharts[idx], layout: newLayout };
-                             updateManifest(selectedModel.id, activeSheet, currentCharts);
+                             updateChart(selectedModel.id, activeSheet, idx, { layout: newLayout });
                           }}
-                          
+
                           // D. Handle Color Save
                           onColorChange={(newColor) => {
-                             const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
-                             currentCharts[idx] = { ...currentCharts[idx], colors: [newColor] }; 
-                             updateManifest(selectedModel.id, activeSheet, currentCharts);
+                             updateChart(selectedModel.id, activeSheet, idx, { colors: [newColor] });
                           }}
                         >
                            <div className="w-full h-full pointer-events-none select-none">

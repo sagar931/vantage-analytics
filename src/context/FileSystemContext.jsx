@@ -129,7 +129,35 @@ export const FileSystemProvider = ({ children }) => {
       // Add the chart
       newManifest.visualizations[modelId][sheetName].push(chartConfig);
       
+      // CRITICAL: Save to disk immediately
+      saveToDisk(newManifest, vlmHandle);
+      
       console.log("📊 Chart Saved:", newManifest);
+      return newManifest;
+    });
+  };
+
+// NEW: Update existing chart (for layout/color changes)
+  const updateChart = (modelId, sheetName, chartIndex, updates) => {
+    setManifest(prev => {
+      const newManifest = JSON.parse(JSON.stringify(prev || {}));
+      
+      // Ensure path exists
+      if (!newManifest.visualizations?.[modelId]?.[sheetName]?.[chartIndex]) {
+        console.error("Chart not found at index", chartIndex);
+        return prev;
+      }
+      
+      // Update only the specific chart
+      newManifest.visualizations[modelId][sheetName][chartIndex] = {
+        ...newManifest.visualizations[modelId][sheetName][chartIndex],
+        ...updates
+      };
+      
+      // CRITICAL: Save to disk immediately
+      saveToDisk(newManifest, vlmHandle);
+      
+      console.log("✅ Chart Updated:", updates);
       return newManifest;
     });
   };
@@ -148,6 +176,10 @@ export const FileSystemProvider = ({ children }) => {
       if (newManifest.visualizations?.[modelId]?.[sheetName]) {
         newManifest.visualizations[modelId][sheetName].splice(chartIndex, 1);
       }
+      
+      // CRITICAL: Save to disk immediately
+      saveToDisk(newManifest, vlmHandle);
+      
       return newManifest;
     });
   };
@@ -166,7 +198,7 @@ export const FileSystemProvider = ({ children }) => {
       connectDirectory, disconnect, 
       selectedModel, openModel, closeModel, 
       manifest, selectVlmFile, createVlmFile, updateManifest,
-      saveChart, removeChart
+      saveChart, updateChart, removeChart
     }}>
       {children}
     </FileSystemContext.Provider>
