@@ -44,7 +44,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
       xAxis,
       dataKeys,
       threshold: threshold ? parseFloat(threshold) : null,
-      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'] 
+            colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4', '#f43f5e']
     };
     
     onSave(newChart);

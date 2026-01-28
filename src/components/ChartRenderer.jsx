@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   ResponsiveContainer, ComposedChart, PieChart, Pie, Cell, 
-  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine 
+  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Brush 
 } from 'recharts';
 
 // HELPER: Convert Excel Serial Date to JS Date String
@@ -135,9 +135,18 @@ const ChartRenderer = ({ config, data }) => {
             />
             <Tooltip 
               cursor={{ fill: '#1e293b', opacity: 0.4 }}
-              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px' }}
-              itemStyle={{ color: '#fff' }}
+              contentStyle={{ 
+                backgroundColor: '#0f172a', 
+                borderColor: '#334155', 
+                color: '#fff', 
+                borderRadius: '8px',
+                padding: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+              }}
+              itemStyle={{ color: '#fff', padding: '4px 0' }}
+              labelStyle={{ fontWeight: 'bold', marginBottom: '8px' }}
               labelFormatter={formatExcelDate}
+              formatter={(value, name) => [`${Number(value).toFixed(4)}`, name]}
             />
             
             {threshold && (
@@ -149,10 +158,15 @@ const ChartRenderer = ({ config, data }) => {
                />
             )}
 
-            {/* Only render Legend if we have valid keys */}
-            {activeDataKeys.length > 0 && (
-                <Legend wrapperStyle={{ paddingTop: '15px' }} iconType="circle" />
-            )}
+            {/* Brush for zooming */}
+            <Brush 
+              dataKey={xAxis} 
+              height={25} 
+              stroke="#3b82f6"
+              fill="#1e293b"
+              travellerWidth={10}
+              tickFormatter={formatExcelDate}
+            />
             
             {activeDataKeys.map((key, index) => {
               // Single Bar Threshold Logic
@@ -182,8 +196,8 @@ const ChartRenderer = ({ config, data }) => {
                   barSize={activeDataKeys.length > 1 ? 16 : 40} 
                   strokeWidth={3}
                   radius={[4, 4, 0, 0]}
-                  dot={{ r: 4, strokeWidth: 2 }}
-                  activeDot={{ r: 6 }}
+                  dot={{ r: 5, strokeWidth: 2, fill: colors[index % colors.length] }}
+                  activeDot={{ r: 8, strokeWidth: 3, fill: colors[index % colors.length] }}
                 />
               )
             })}
