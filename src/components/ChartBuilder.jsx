@@ -1,22 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle } from 'lucide-react';
 
 const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('bar'); // bar, line, area, donut
-  const [xAxis, setXAxis] = useState(columns[0] || '');
-  const [dataKeys, setDataKeys] = useState([]); // Array of columns to plot
+  const [type, setType] = useState('bar'); 
+  const [xAxis, setXAxis] = useState('');
+  const [dataKeys, setDataKeys] = useState([]); 
   const [threshold, setThreshold] = useState(''); 
+
+  // FIX 1: Reset state when opening or changing sheets to prevent "Ghost Keys"
+  useEffect(() => {
+    if (isOpen) {
+      setTitle('');
+      // Default to first column for X, empty for Y
+      setXAxis(columns[0] || ''); 
+      setDataKeys([]); 
+      setThreshold('');
+    }
+  }, [isOpen, columns]);
 
   if (!isOpen) return null;
 
   const toggleDataKey = (col) => {
-    // For Donut, we typically only want ONE value series
     if (type === 'donut') {
       setDataKeys([col]);
       return;
     }
-    
     setDataKeys(prev => 
       prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
     );
@@ -28,9 +37,6 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
       return;
     }
     
-    // Auto-detect "Dual Bar" intent if type is bar and 2 keys are selected
-    // We don't need a separate type, the renderer will handle it.
-    
     const newChart = {
       id: Date.now().toString(),
       title,
@@ -38,7 +44,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
       xAxis,
       dataKeys,
       threshold: threshold ? parseFloat(threshold) : null,
-      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] 
+      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'] 
     };
     
     onSave(newChart);
@@ -60,7 +66,6 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
         {/* Body */}
         <div className="p-6 space-y-6">
           
-          {/* 1. Title & Type */}
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Title</label>
@@ -69,7 +74,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
-                placeholder="e.g. Actual vs Expected"
+                placeholder="e.g. Volume Comparison"
               />
             </div>
             <div>
@@ -91,10 +96,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
             </div>
           </div>
 
-          {/* 2. Axes Configuration */}
           <div className="grid grid-cols-2 gap-6">
-            
-            {/* X-Axis */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
                 {type === 'donut' ? 'Segment Label' : 'X-Axis (Category)'}
@@ -112,10 +114,9 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
               </div>
             </div>
 
-            {/* Y-Axis */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                {type === 'donut' ? 'Value Size (Pick 1)' : 'Y-Axis (Select Multiple for Comparison)'}
+                {type === 'donut' ? 'Value Size (Pick 1)' : 'Y-Axis (Select Multiple)'}
               </label>
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-48 overflow-y-auto custom-scrollbar">
                 {columns.map(col => (
@@ -130,10 +131,8 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
                 ))}
               </div>
             </div>
-
           </div>
 
-          {/* 3. Threshold (Hidden for Donut or Multi-Bar) */}
           {type !== 'donut' && (
              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
@@ -150,15 +149,10 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-500">Breach Limit</span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  * Thresholds apply primarily to single-metric charts.
-                </p>
              </div>
           )}
-
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex justify-end">
           <button 
             onClick={handleSave}
