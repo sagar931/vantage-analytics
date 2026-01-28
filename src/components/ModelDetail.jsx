@@ -6,7 +6,7 @@ import RuleBuilder from './RuleBuilder';
 import { 
   ArrowLeft, Layers, Calendar, Search, Bell, UserCircle, Download, Filter, 
   ChevronLeft, ChevronRight, MonitorPlay, ZoomIn, ZoomOut, Minimize2, 
-  Edit3, Save, Snowflake, Ruler 
+  Edit3, Save, Snowflake, Ruler, Layout, Maximize, Scan
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -18,13 +18,14 @@ const ModelDetail = () => {
   const [workbookData, setWorkbookData] = useState(null);
   const [activeSheet, setActiveSheet] = useState(null);
   const [sheetData, setSheetData] = useState([]);
-  const [sheetMerges, setSheetMerges] = useState([]); // NEW: Store Merge Data
+  const [sheetMerges, setSheetMerges] = useState([]); 
   const [isLoading, setIsLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
 
   // VIEW STATE
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'presentation' | 'focus'
   const [zoomLevel, setZoomLevel] = useState(100);
   
   // FEATURE STATES
@@ -54,7 +55,6 @@ const ModelDetail = () => {
       const firstSheet = data.sheetNames[0];
       setActiveSheet(firstSheet);
       
-      // NEW: Extract data AND merges
       const { data: rawData, merges } = parseSheetData(data.workbook, firstSheet);
       setSheetData(rawData);
       setSheetMerges(merges);
@@ -72,11 +72,9 @@ const ModelDetail = () => {
     if (!workbookData) return;
     setActiveSheet(sheetName);
     
-    // NEW: Extract data AND merges
     const { data: rawData, merges } = parseSheetData(workbookData.workbook, sheetName);
     setSheetData(rawData);
     setSheetMerges(merges);
-    
     setFrozenColCount(0);
   };
 
@@ -94,10 +92,12 @@ const ModelDetail = () => {
     if (!isPresentationMode) {
       setIsPresentationMode(true);
       setIsSidebarCollapsed(true);
-      setZoomLevel(110);
+      setViewMode('presentation'); 
+      setZoomLevel(100); 
     } else {
       setIsPresentationMode(false);
       setIsSidebarCollapsed(false);
+      setViewMode('compact');
       setZoomLevel(100);
     }
   };
@@ -126,14 +126,10 @@ const ModelDetail = () => {
     return left;
   };
 
-  // NEW: Helper to check if a cell is merged
   const getMergeProps = (rowIndex, colIndex) => {
     if (!sheetMerges || sheetMerges.length === 0) return null;
 
     for (const merge of sheetMerges) {
-      // merge.s = start {c, r}, merge.e = end {c, r}
-      
-      // 1. Is this the Top-Left cell of a merge?
       if (merge.s.r === rowIndex && merge.s.c === colIndex) {
         return {
           rowSpan: merge.e.r - merge.s.r + 1,
@@ -141,9 +137,6 @@ const ModelDetail = () => {
           isStart: true
         };
       }
-
-      // 2. Is this cell INSIDE a merge (but not the start)?
-      // It should be hidden.
       if (
         rowIndex >= merge.s.r && rowIndex <= merge.e.r &&
         colIndex >= merge.s.c && colIndex <= merge.e.c
@@ -151,7 +144,7 @@ const ModelDetail = () => {
         return { isHidden: true };
       }
     }
-    return null; // Not merged
+    return null;
   };
 
   return (
@@ -235,22 +228,48 @@ const ModelDetail = () => {
         
         {/* PRESENTATION HEADER */}
         {isPresentationMode && (
-           <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-[60] flex items-center justify-between px-8 shadow-2xl">
+           <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 z-[60] flex items-center justify-between px-8 shadow-2xl">
+              
+              {/* Left: Title Info */}
               <div className="flex items-center gap-4 text-white">
                  <div className="flex items-center gap-2">
                     <span className="font-bold text-xl text-blue-400">{selectedModel.name.replace(/_/g, ' ')}</span>
                     <span className="text-slate-600 text-xl">/</span>
                     <span className="text-lg font-mono text-slate-300">{activeFile?.period}</span>
                  </div>
-                 <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs font-bold uppercase tracking-widest text-emerald-400">
+                 <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs font-bold uppercase tracking-widest text-emerald-400 shadow-inner">
                     {activeSheet}
                  </div>
               </div>
+
+              {/* Center: View Switcher */}
+              <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                <button 
+                  onClick={() => setViewMode('compact')}
+                  className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'compact' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                >
+                  <Maximize className="w-3 h-3" /> Full
+                </button>
+                <button 
+                  onClick={() => setViewMode('presentation')}
+                  className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'presentation' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                >
+                  <Layout className="w-3 h-3" /> Present
+                </button>
+                <button 
+                  onClick={() => setViewMode('focus')}
+                  className={clsx("px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-medium transition-all", viewMode === 'focus' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white")}
+                >
+                  <Scan className="w-3 h-3" /> Focus
+                </button>
+              </div>
+              
+              {/* Right: Exit */}
               <button 
                   onClick={togglePresentation}
                   className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 rounded-lg border border-slate-700 transition-colors text-sm font-medium"
               >
-                 <Minimize2 className="w-4 h-4" /> Exit Slide Show
+                 <Minimize2 className="w-4 h-4" /> Exit
               </button>
            </div>
         )}
@@ -357,11 +376,18 @@ const ModelDetail = () => {
             )}
 
             {/* Table Area */}
-            <div className="flex-1 overflow-hidden relative bg-slate-950">
+            <div 
+              className={clsx(
+                "flex-1 overflow-hidden relative transition-colors duration-700",
+                // Gradient for Presentation, Flat for Normal
+                isPresentationMode ? "bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950" : "bg-slate-950"
+              )}
+            >
               <div 
                 className={clsx(
-                  "absolute inset-0 overflow-auto custom-scrollbar", 
-                  isPresentationMode && "pt-20"
+                  "absolute left-0 right-0 bottom-0 overflow-auto custom-scrollbar", 
+                  // FIXED: Use top-16 in presentation mode so scrolling starts BELOW the header
+                  isPresentationMode ? "top-16" : "top-0"
                 )}
               > 
                 {isLoading ? (
@@ -372,7 +398,13 @@ const ModelDetail = () => {
                 ) : (
                   <div 
                     style={{ zoom: zoomLevel / 100 }}
-                    className="min-w-full"
+                    className={clsx(
+                      "transition-all duration-500 ease-out origin-top", 
+                      // Presentation Container Logic
+                      viewMode === 'presentation' && isPresentationMode 
+                        ? "w-[94%] mx-auto mt-4 mb-4 shadow-2xl rounded-xl border border-slate-700/50 overflow-hidden bg-slate-900" 
+                        : "min-w-full"
+                    )}
                   >
                     <table className="table-fixed min-w-full text-left border-collapse relative">
                       
@@ -400,18 +432,17 @@ const ModelDetail = () => {
                                 colSpan={mergeProps?.colSpan || 1}
                                 rowSpan={mergeProps?.rowSpan || 1}
                                 className={clsx(
-                                    "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
-                                    
-                                    // NEW: Apply Centering to Merged Headers
-                                    mergeProps?.isStart ? "text-center align-middle" : "text-left align-top",
-
-                                    selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
-                                    isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
-                                    
-                                    // FROZEN LOGIC
-                                    i < frozenColCount && "sticky z-[60] border-r border-slate-700",
-                                    i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
-                                    )}
+                                  "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
+                                  // Center if Merged
+                                  mergeProps?.isStart ? "text-center align-middle" : "text-left align-top",
+                                  
+                                  selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
+                                  isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
+                                  
+                                  // FROZEN LOGIC
+                                  i < frozenColCount && "sticky z-[60] border-r border-slate-700",
+                                  i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
+                                )}
                                 style={{ 
                                   width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
                                   minWidth: (mergeProps?.colSpan || 1) * COLUMN_WIDTH,
@@ -465,17 +496,17 @@ const ModelDetail = () => {
                                     colSpan={mergeProps?.colSpan || 1}
                                     rowSpan={mergeProps?.rowSpan || 1}
                                     className={clsx(
-                                        "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors", // Removed 'truncate align-top'
-                                        className,
-                                        isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
-                                        
-                                        // NEW: Center Merged Cells
-                                        mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
+                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors",
+                                      className,
+                                      isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
+                                      
+                                      // Center if Merged
+                                      mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
 
-                                        // FROZEN LOGIC
-                                        cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
-                                        cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
-                                        )}
+                                      // FROZEN LOGIC
+                                      cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
+                                      cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
+                                    )}
                                     style={{
                                       backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
                                       ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
