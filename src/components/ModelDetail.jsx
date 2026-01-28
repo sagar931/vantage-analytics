@@ -432,9 +432,15 @@ const ModelDetail = () => {
   const [isColManagerOpen, setIsColManagerOpen] = useState(false); // Needed for the dropdown
 
   // Constants
-  const COLUMN_WIDTH = 192; // 12rem
+  const DEFAULT_COLUMN_WIDTH = 192; // 12rem
   const ROW_NUM_WIDTH = 64; 
   const BG_COLOR = '#0f172a'; // Slate 900 (Opaque)
+  
+  // Column Resize State
+  const [columnWidths, setColumnWidths] = useState({});
+  const [resizingCol, setResizingCol] = useState(null);
+  const resizeStartX = useRef(0);
+  const resizeStartWidth = useRef(0);
 
   const filesByYear = selectedModel.files.reduce((acc, file) => {
     const year = file.period.slice(-4);
@@ -499,12 +505,44 @@ const ModelDetail = () => {
     }
   };
 
-  const handleCellEdit = (rowIndex, cellIndex, newValue) => {
+const handleCellEdit = (rowIndex, cellIndex, newValue) => {
     const updatedData = [...sheetData];
     const actualRowIndex = rowIndex + 1;
     updatedData[actualRowIndex][cellIndex] = newValue;
     setSheetData(updatedData);
   };
+
+  // Column Resize Handlers
+  const handleResizeStart = (e, colIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingCol(colIndex);
+    resizeStartX.current = e.clientX;
+    resizeStartWidth.current = getColumnWidth(colIndex);
+  };
+
+  useEffect(() => {
+    if (resizingCol === null) return;
+
+    const handleMouseMove = (e) => {
+      const diff = e.clientX - resizeStartX.current;
+      const newWidth = Math.max(80, resizeStartWidth.current + diff); // Min width 80px
+      setColumnWidths(prev => ({ ...prev, [resizingCol]: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingCol(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingCol]);
+
 
   const handleFreeze = () => {
     if (selectedColIndex !== null) {
@@ -527,10 +565,16 @@ const ModelDetail = () => {
     });
   };
 
+const getColumnWidth = (index) => {
+    return columnWidths[index] || DEFAULT_COLUMN_WIDTH;
+  };
+
   const getStickyLeft = (index) => {
     let left = 0;
-    if (showRowNumbers) left += ROW_NUM_WIDTH; 
-    left += index * COLUMN_WIDTH; 
+    if (showRowNumbers) left += ROW_NUM_WIDTH;
+    for (let i = 0; i < index; i++) {
+      left += getColumnWidth(i);
+    }
     return left;
   };
 
@@ -938,7 +982,7 @@ const ModelDetail = () => {
                                     i < frozenColCount && "sticky z-[60] border-r border-slate-700"
                                   )}
                                   style={{ 
-                                    width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
+                                    width: getColumnWidth(i) * (mergeProps?.colSpan || 1), 
                                     backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
                                     ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
                                   }}
@@ -973,6 +1017,17 @@ const ModelDetail = () => {
                                            {compactColumns.includes(i) && <CheckSquare className="w-3.5 h-3.5 text-blue-500"/>}
                                         </button>
                                      </div>
+                                  )}
+                                  
+                                  {/* RESIZE HANDLE */}
+                                  {!isPresentationMode && (
+                                    <div 
+                                      className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 hover:w-1.5 transition-all z-[70] group/resize"
+                                      onMouseDown={(e) => handleResizeStart(e, i)}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <div className="absolute inset-y-0 -left-1 -right-1" />
+                                    </div>
                                   )}
                                 </th>
                               );
@@ -1039,6 +1094,7 @@ const ModelDetail = () => {
                                       style={{
                                         backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
                                         ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
+                                        width: getColumnWidth(cellIndex),
                                         ...style
                                       }}
                                     >
