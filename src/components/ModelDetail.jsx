@@ -462,17 +462,18 @@ const ModelDetail = () => {
   const [chartToDelete, setChartToDelete] = useState(null);
   const [zoomStates, setZoomStates] = useState({}); // Stores zoom range per chart: { index: { left, right } }
   const [expandedYears, setExpandedYears] = useState({});
+  const [expandedGroups, setExpandedGroups] = useState({});
 
-  // Auto-expand the most recent year on load
+ // Auto-expand the most recent year on load
   useEffect(() => {
     const years = Object.keys(filesByYear).sort().reverse();
     if (years.length > 0) {
-      setExpandedYears({ [years[0]]: true });
+      setExpandedGroups(prev => ({ ...prev, [years[0]]: true }));
     }
   }, [selectedModel]);
 
-  const toggleYear = (year) => {
-    setExpandedYears((prev) => ({ ...prev, [year]: !prev[year] }));
+  const toggleGroup = (key) => {
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   // --- HELPER: FIND PREVIOUS FILE (AUTO-DISCOVERY) ---
@@ -783,30 +784,30 @@ const ModelDetail = () => {
 
   return (
     <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative">
-      {/* 1. LEFT SIDEBAR (PREMIUM) */}
+      {/* 1. LEFT SIDEBAR (PREMIUM & NESTED) */}
       <div 
         className={clsx(
           "bg-[#0b1121] border-r border-slate-800 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] relative",
-          isSidebarCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-72 opacity-100"
+          isSidebarCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-80 opacity-100" // Increased width slightly
         )}
       >
-        {/* Brand Header (Original) */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-800/50 bg-[#0b1121] whitespace-nowrap shadow-sm">
-          <div className="flex items-center gap-2 font-bold tracking-tight text-lg text-[#00AEEF]">
+        {/* Brand Header (Upscaled) */}
+        <div className="h-20 flex items-center px-6 border-b border-slate-800/50 bg-[#0b1121] whitespace-nowrap shadow-sm shrink-0">
+          <div className="flex items-center gap-3 font-bold tracking-tight text-2xl text-[#00AEEF]">
             <img
               src="/barclays_logo.png"
               alt="Barclays"
-              className="h-8 w-auto object-contain"
+              className="h-10 w-auto object-contain"
             />
             <span>BARCLAYS</span>
           </div>
         </div>
 
         {/* Navigation & Info */}
-        <div className="p-5 space-y-4">
-           <button onClick={closeModel} className="group w-full flex items-center gap-3 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-800 px-4 py-2.5 rounded-xl transition-all text-sm font-medium border border-slate-700/50 hover:border-slate-600 hover:shadow-lg">
-             <div className="bg-slate-700 p-1 rounded group-hover:bg-blue-600 transition-colors">
-               <ArrowLeft className="w-3.5 h-3.5 text-white" />
+        <div className="p-5 space-y-4 shrink-0">
+           <button onClick={closeModel} className="group w-full flex items-center gap-3 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-slate-700/50 hover:border-slate-600 hover:shadow-lg">
+             <div className="bg-slate-700 p-1.5 rounded group-hover:bg-blue-600 transition-colors">
+               <ArrowLeft className="w-4 h-4 text-white" />
              </div>
              Return to Grid
           </button>
@@ -815,56 +816,119 @@ const ModelDetail = () => {
             <h2 className="text-xl font-bold text-white leading-tight tracking-tight">{selectedModel.name.replace(/_/g, ' ')}</h2>
             <div className="flex items-center gap-2 mt-2">
                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-               <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">ID: {selectedModel.id}</span>
+               <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">ID: {selectedModel.id}</span>
             </div>
           </div>
         </div>
 
-        {/* File List (Collapsible Accordion) */}
+        {/* File List (Nested Accordion: Year > Qtr > Files) */}
         <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
-          <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-2">History</div>
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 px-2 mt-2">History</div>
           
-          {Object.keys(filesByYear).sort().reverse().map(year => (
-            <div key={year} className="mb-2">
-              {/* Year Header */}
-              <button 
-                onClick={() => toggleYear(year)}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors group"
-              >
-                 <span className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-slate-600 group-hover:text-blue-400 transition-colors" />
-                    {year}
-                 </span>
-                 <ChevronRight className={clsx("w-3 h-3 transition-transform duration-300", expandedYears[year] ? "rotate-90 text-white" : "text-slate-600")} />
-              </button>
+          {Object.keys(filesByYear).sort().reverse().map(year => {
+            // 1. Group files by Quarter (Q1-Q4) and Special (Q5/Q6/Agg)
+            const groups = { Specials: [], Q4: [], Q3: [], Q2: [], Q1: [] };
+            
+            filesByYear[year].forEach(file => {
+               const p = file.period;
+               // Detect "Special" quarters (Q5, Q6, etc.) or Aggregates
+               if (/Q[5-9]/i.test(p) || /Agg/i.test(p) || /Year/i.test(p)) {
+                   groups.Specials.push(file);
+               }
+               else if (p.includes('Q4') || /Oct|Nov|Dec/i.test(p)) groups.Q4.push(file);
+               else if (p.includes('Q3') || /Jul|Aug|Sep/i.test(p)) groups.Q3.push(file);
+               else if (p.includes('Q2') || /Apr|May|Jun/i.test(p)) groups.Q2.push(file);
+               else groups.Q1.push(file); // Default to Q1 for Jan/Feb/Mar or catch-all
+            });
 
-              {/* Files Grid (Animated) */}
-              <div className={clsx("overflow-hidden transition-all duration-300 ease-in-out space-y-1", expandedYears[year] ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0")}>
-                {filesByYear[year].map(file => (
-                  <button
-                    key={file.originalName}
-                    onClick={() => handleFileClick(file)}
-                    className={clsx(
-                      "w-full text-left pl-9 pr-3 py-2.5 rounded-lg text-sm flex items-center justify-between group transition-all relative overflow-hidden",
-                      activeFile?.originalName === file.originalName 
-                        ? "bg-blue-600 text-white shadow-md shadow-blue-900/30 font-medium" 
-                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    )}
-                  >
-                    <span className="relative z-10">{file.period.replace(/\d{4}/, '')}</span>
-                    {file.frequency === 'Quarterly' && (
-                      <span className={clsx("text-[9px] px-1.5 py-0.5 rounded font-bold uppercase relative z-10", activeFile?.originalName === file.originalName ? "bg-white/20 text-white" : "bg-slate-800 text-slate-500")}>Q</span>
-                    )}
-                    
-                    {/* Active Indicator Bar */}
-                    {activeFile?.originalName === file.originalName && (
-                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-white/20"></div>
-                    )}
-                  </button>
-                ))}
+            // Define display order and labels
+            const displayGroups = [
+                { key: 'Specials', label: 'Summary & Reports', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
+                { key: 'Q4', label: 'Q4 (Oct - Dec)', icon: <div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> },
+                { key: 'Q3', label: 'Q3 (Jul - Sep)', icon: <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> },
+                { key: 'Q2', label: 'Q2 (Apr - Jun)', icon: <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> },
+                { key: 'Q1', label: 'Q1 (Jan - Mar)', icon: <div className="w-1.5 h-1.5 rounded-full bg-amber-500" /> },
+            ].filter(g => groups[g.key].length > 0);
+
+            return (
+              <div key={year} className="mb-3">
+                {/* LEVEL 1: YEAR TOGGLE */}
+                <button 
+                  onClick={() => toggleGroup(year)}
+                  className="w-full flex items-center justify-between px-3 py-3 text-sm font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-all group border border-transparent hover:border-slate-700"
+                >
+                   <span className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors" />
+                      {year}
+                   </span>
+                   <ChevronRight className={clsx("w-4 h-4 transition-transform duration-300", expandedGroups[year] ? "rotate-90 text-white" : "text-slate-600")} />
+                </button>
+
+                {/* LEVEL 2: QUARTER LIST (Animated) */}
+                <div className={clsx("overflow-hidden transition-all duration-500 ease-in-out", expandedGroups[year] ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0")}>
+                  <div className="pt-1 pb-2 pl-3 space-y-1 relative">
+                    {/* Vertical connector line */}
+                    <div className="absolute left-[22px] top-0 bottom-4 w-px bg-slate-800"></div>
+
+                    {displayGroups.map(group => {
+                       const groupKey = `${year}-${group.key}`; // Unique ID for state
+                       const isGroupExpanded = expandedGroups[groupKey];
+
+                       return (
+                         <div key={groupKey} className="relative pl-6 pt-1">
+                            {/* Horizontal connector */}
+                            <div className="absolute left-0 top-[18px] w-4 h-px bg-slate-800"></div>
+
+                            {/* QUARTER TOGGLE */}
+                            <button 
+                                onClick={() => toggleGroup(groupKey)}
+                                className={clsx(
+                                    "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors border select-none",
+                                    isGroupExpanded 
+                                        ? "bg-slate-800/80 text-white border-slate-700" 
+                                        : "text-slate-400 hover:text-white hover:bg-slate-800/30 border-transparent"
+                                )}
+                            >
+                                <div className="flex items-center gap-2">
+                                    {group.icon}
+                                    {group.label}
+                                </div>
+                                <ChevronRight className={clsx("w-3 h-3 transition-transform", isGroupExpanded ? "rotate-90" : "")} />
+                            </button>
+
+                            {/* LEVEL 3: FILES (Animated) */}
+                            <div className={clsx("overflow-hidden transition-all duration-300", isGroupExpanded ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0")}>
+                                <div className="pl-2 space-y-1 border-l border-slate-800/50 ml-3 my-1">
+                                    {groups[group.key].map(file => (
+                                        <button
+                                            key={file.originalName}
+                                            onClick={() => handleFileClick(file)}
+                                            className={clsx(
+                                                "w-full text-left pl-4 pr-3 py-2 rounded-md text-xs flex items-center justify-between group transition-all relative overflow-hidden",
+                                                activeFile?.originalName === file.originalName 
+                                                ? "bg-blue-600 text-white font-medium shadow-md shadow-blue-900/20" 
+                                                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                                            )}
+                                        >
+                                            <span className="relative z-10">{file.period.replace(/\d{4}/, '')}</span>
+                                            {/* Frequency Badge */}
+                                            {(file.frequency === 'Quarterly' || group.key === 'Specials') && (
+                                                <span className={clsx("text-[9px] px-1.5 rounded uppercase font-bold", activeFile?.originalName === file.originalName ? "bg-white/20 text-white" : "bg-slate-900 text-slate-500")}>
+                                                    AGG
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                         </div>
+                       );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
