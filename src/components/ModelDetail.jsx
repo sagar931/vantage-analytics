@@ -13,12 +13,12 @@ import {
   Layout, Maximize, Scan, 
   // Column Manager
   Eye, EyeOff, CheckSquare, Square,
-  BarChart3, Table
+  BarChart3, Table, Trash2
 } from 'lucide-react';
 import clsx from 'clsx';
 
 const ModelDetail = () => {
-  const { selectedModel, closeModel, manifest, updateManifest, saveChart } = useFileSystem();
+  const { selectedModel, closeModel, manifest, updateManifest, saveChart, removeChart } = useFileSystem();
   
   // Data State
   const [activeFile, setActiveFile] = useState(null);
@@ -403,21 +403,31 @@ const ModelDetail = () => {
                    <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"><Filter className="w-3 h-3" /> Add Rule</button>
                  </div>
 
-                 {/* VIEW MODE TOGGLE */}
-                   <div className="bg-slate-800 rounded-lg p-1 flex border border-slate-700 mr-2">
+                {/* VIEW MODE TOGGLE - FIXED AESTHETICS */}
+                   <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 mr-3 h-8">
                       <button 
                         onClick={() => setActiveTab('table')}
-                        className={clsx("p-1.5 rounded transition-all", activeTab === 'table' ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white")}
+                        className={clsx(
+                          "flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-bold transition-all", 
+                          activeTab === 'table' 
+                            ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10" 
+                            : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                        )}
                         title="Table View"
                       >
-                        <Table className="w-4 h-4" />
+                        <Table className="w-3.5 h-3.5" /> <span className="hidden xl:inline">Table</span>
                       </button>
                       <button 
                         onClick={() => setActiveTab('charts')}
-                        className={clsx("p-1.5 rounded transition-all", activeTab === 'charts' ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white")}
+                        className={clsx(
+                          "flex items-center gap-1.5 px-3 h-full rounded-md text-xs font-bold transition-all", 
+                          activeTab === 'charts' 
+                            ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50" 
+                            : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                        )}
                         title="Chart View"
                       >
-                        <BarChart3 className="w-4 h-4" />
+                        <BarChart3 className="w-3.5 h-3.5" /> <span className="hidden xl:inline">Visuals</span>
                       </button>
                    </div>
                    
@@ -573,26 +583,46 @@ const ModelDetail = () => {
                       <h2 className="text-2xl font-bold text-white">Visual Analysis</h2>
                       <p className="text-slate-400 text-sm">Dashboard for {activeSheet}</p>
                     </div>
-                    <button 
-                      onClick={() => setIsChartBuilderOpen(true)}
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20"
-                    >
-                      <BarChart3 className="w-4 h-4" /> Create New Widget
-                    </button>
+                    
+                    {/* HIDE BUTTON IN PRESENTATION MODE */}
+                    {!isPresentationMode && (
+                      <button 
+                        onClick={() => setIsChartBuilderOpen(true)}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20"
+                      >
+                        <BarChart3 className="w-4 h-4" /> Create New Widget
+                      </button>
+                    )}
                   </div>
 
                   {/* Canvas Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
                     {manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.map((chartConfig, idx) => (
-                      <ChartRenderer 
-                        key={idx} 
-                        config={chartConfig} 
-                        data={sheetData.slice(1).map(row => {
-                           const obj = {};
-                           sheetData[0].forEach((key, i) => obj[key] = row[i]);
-                           return obj;
-                        })} 
-                      />
+                      <div key={idx} className="relative group">
+                        <ChartRenderer 
+                          config={chartConfig} 
+                          data={sheetData.slice(1).map(row => {
+                             const obj = {};
+                             sheetData[0].forEach((key, i) => obj[key] = row[i]);
+                             return obj;
+                          })} 
+                        />
+                        
+                        {/* DELETE BUTTON (Only visible on hover, hidden in presentation) */}
+                        {!isPresentationMode && (
+                          <button 
+                            onClick={() => {
+                              if(window.confirm("Delete this chart?")) {
+                                removeChart(selectedModel.id, activeSheet, idx);
+                              }
+                            }}
+                            className="absolute top-4 right-4 p-2 bg-slate-800/80 backdrop-blur text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-slate-700"
+                            title="Delete Widget"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     ))}
                     
                     {/* Empty State */}

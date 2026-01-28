@@ -141,6 +141,17 @@ export const FileSystemProvider = ({ children }) => {
     setManifest(null);
   };
 
+  // Remove Chart
+  const removeChart = (modelId, sheetName, chartIndex) => {
+    setManifest(prev => {
+      const newManifest = JSON.parse(JSON.stringify(prev || {}));
+      if (newManifest.visualizations?.[modelId]?.[sheetName]) {
+        newManifest.visualizations[modelId][sheetName].splice(chartIndex, 1);
+      }
+      return newManifest;
+    });
+  };
+
   const openModel = (modelId) => {
     if (models[modelId]) setSelectedModel(models[modelId]);
   };
@@ -155,7 +166,7 @@ export const FileSystemProvider = ({ children }) => {
       connectDirectory, disconnect, 
       selectedModel, openModel, closeModel, 
       manifest, selectVlmFile, createVlmFile, updateManifest,
-      saveChart
+      saveChart, removeChart
     }}>
       {children}
     </FileSystemContext.Provider>
