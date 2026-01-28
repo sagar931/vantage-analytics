@@ -404,29 +404,31 @@ const ModelDetail = () => {
                    <button onClick={() => setIsRuleModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"><Filter className="w-3 h-3" /> Add Rule</button>
                  </div>
 
-                {/* VIEW MODE TOGGLE - ALIGNMENT FIX */}
-                   <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 ml-2">
+                {/* VIEW MODE TOGGLE - ICON ONLY */}
+                   <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 ml-2 h-full">
                       <button 
                         onClick={() => setActiveTab('table')}
                         className={clsx(
-                          "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all", 
+                          "p-1.5 rounded-md transition-all", 
                           activeTab === 'table' 
                             ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10" 
                             : "text-slate-400 hover:text-white hover:bg-slate-700/50"
                         )}
+                        title="Table Data"
                       >
-                        <Table className="w-3.5 h-3.5" /> <span className="hidden xl:inline">Table</span>
+                        <Table className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => setActiveTab('charts')}
                         className={clsx(
-                          "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all", 
+                          "p-1.5 rounded-md transition-all", 
                           activeTab === 'charts' 
                             ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50" 
                             : "text-slate-400 hover:text-white hover:bg-slate-700/50"
                         )}
+                        title="Visual Charts"
                       >
-                        <BarChart3 className="w-3.5 h-3.5" /> <span className="hidden xl:inline">Visuals</span>
+                        <BarChart3 className="w-4 h-4" />
                       </button>
                    </div>
                    
