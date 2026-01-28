@@ -1228,8 +1228,8 @@ const getColumnWidth = (index) => {
                              updateChart(selectedModel.id, activeSheet, idx, { colors: [newColor] });
                           }}
                         >
-                           <div className="w-full h-full pointer-events-none select-none">
-                              {/* E. Render Chart with Color */}
+                           {/* FIX: Removed pointer-events-none so Tooltips work */}
+                           <div className="w-full h-full select-none">
                               <ChartRenderer 
                                  config={{ ...chartConfig, colors: [activeColor] }} 
                                  data={sheetData.slice(1).map(row => { const obj = {}; sheetData[0].forEach((key, i) => obj[key] = row[i]); return obj; })} 
