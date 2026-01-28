@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFileSystem } from '../context/FileSystemContext';
 import { readExcelFile, parseSheetData } from '../utils/excelReader';
 import { getCellStyle } from '../utils/logicEngine'; 
@@ -13,11 +13,42 @@ import {
   Layout, Maximize, Scan, 
   // Column Manager
   Eye, EyeOff, CheckSquare, Square,
-  BarChart3, Table, Trash2
+  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash
 } from 'lucide-react';
 import clsx from 'clsx';
 
+  // --- HELPER: FORMATTING ENGINE ---
+const formatCellValue = (value, header, isCompactMode) => {
+  if (value === null || value === undefined) return '';
+
+  // 1. DETECT DATE (Excel Serial Numbers like 46023)
+  const isDateHeader = /date|time|period|cat/i.test(header);
+  if (typeof value === 'number' && value > 35000 && value < 60000 && isDateHeader) {
+     const date = new Date((value - 25569) * 86400 * 1000);
+     return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); // "Jan 26"
+  }
+
+  // 2. HANDLE NUMBERS
+  if (typeof value === 'number') {
+     // A. Compact Mode (e.g. 100K)
+     if (isCompactMode) {
+        return new Intl.NumberFormat('en-US', {
+           notation: "compact",
+           compactDisplay: "short",
+           maximumFractionDigits: 1
+        }).format(value);
+     }
+     // B. Standard Mode (Commas: 100,000)
+     const isID = /id|year|code/i.test(header);
+     if (!isID) {
+        return value.toLocaleString('en-US');
+     }
+  }
+  return value;
+};
+
 const ModelDetail = () => {
+
   const { selectedModel, closeModel, manifest, updateManifest, saveChart, removeChart } = useFileSystem();
   
   // Data State
@@ -40,6 +71,47 @@ const ModelDetail = () => {
   const [showRowNumbers, setShowRowNumbers] = useState(false);
   const [frozenColCount, setFrozenColCount] = useState(0);     
   const [selectedColIndex, setSelectedColIndex] = useState(null); 
+
+  // --- NEW: Sorting & Formatting State ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [compactColumns, setCompactColumns] = useState([]); 
+  const [activeMenuCol, setActiveMenuCol] = useState(null); 
+
+  // --- DERIVED DATA: SORTED SHEET ---
+  const processedSheetData = useMemo(() => {
+    if (!sheetData || sheetData.length === 0) return [];
+    
+    const headers = sheetData[0];
+    const rows = sheetData.slice(1);
+
+    if (sortConfig.key !== null) {
+       rows.sort((a, b) => {
+          const valA = a[sortConfig.key];
+          const valB = b[sortConfig.key];
+          
+          if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+       });
+    }
+    return [headers, ...rows];
+  }, [sheetData, sortConfig]);
+
+  const toggleCompactMode = (colIndex) => {
+     setCompactColumns(prev => prev.includes(colIndex) ? prev.filter(i => i !== colIndex) : [...prev, colIndex]);
+  };
+
+  const handleSort = (colIndex, direction) => {
+     setSortConfig({ key: colIndex, direction });
+     setActiveMenuCol(null); 
+  };
+  
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuCol(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // --- ADD THESE MISSING LINES BELOW ---
   const [hiddenColumns, setHiddenColumns] = useState([]); // Needed to fix your error
@@ -464,11 +536,8 @@ const ModelDetail = () => {
                         {/* HEADER */}
                         <thead className="text-slate-400 uppercase sticky top-0 z-50 shadow-xl">
                           <tr>
-                            {showRowNumbers && (
-                               <th className="px-4 py-4 border-b border-r border-slate-700 font-bold sticky left-0 z-[60] text-center text-slate-500" style={{ width: ROW_NUM_WIDTH, minWidth: ROW_NUM_WIDTH, backgroundColor: BG_COLOR }}>#</th>
-                            )}
-
-                            {sheetData[0]?.map((head, i) => {
+                            {showRowNumbers && <th className="px-4 py-4 border-b border-r border-slate-700 font-bold sticky left-0 z-[60] bg-slate-900 text-center" style={{ width: ROW_NUM_WIDTH }}>#</th>}
+                            {processedSheetData[0]?.map((head, i) => {
                               if (hiddenColumns.includes(head)) return null;
                               const mergeProps = getMergeProps(0, i);
                               if (mergeProps?.isHidden) return null;
@@ -476,25 +545,54 @@ const ModelDetail = () => {
                               return (
                                 <th 
                                   key={i} 
-                                  onClick={() => setSelectedColIndex(selectedColIndex === i ? null : i)}
+                                  onClick={(e) => {
+                                      if(!e.target.closest('.col-menu-trigger')) setSelectedColIndex(selectedColIndex === i ? null : i)
+                                  }}
                                   colSpan={mergeProps?.colSpan || 1}
                                   rowSpan={mergeProps?.rowSpan || 1}
                                   className={clsx(
-                                    "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative",
-                                    mergeProps?.isStart ? "text-center align-middle" : "text-left align-top",
+                                    "border-b border-slate-700 font-semibold tracking-wider whitespace-nowrap cursor-pointer transition-colors relative group",
                                     selectedColIndex === i ? "text-blue-200 border-blue-500" : "hover:bg-slate-800",
                                     isPresentationMode ? "px-10 py-6 text-sm" : "px-6 py-4 text-xs",
-                                    i < frozenColCount && "sticky z-[60] border-r border-slate-700",
-                                    i === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500"
+                                    i < frozenColCount && "sticky z-[60] border-r border-slate-700"
                                   )}
                                   style={{ 
                                     width: (mergeProps?.colSpan || 1) * COLUMN_WIDTH, 
-                                    minWidth: (mergeProps?.colSpan || 1) * COLUMN_WIDTH,
                                     backgroundColor: selectedColIndex === i ? '#172554' : BG_COLOR,
                                     ...(i < frozenColCount ? { left: getStickyLeft(i) } : {})
                                   }}
                                 >
-                                  {head || `Col ${i+1}`}
+                                  <div className="flex items-center justify-between">
+                                    <span>{head || `Col ${i+1}`}</span>
+                                    
+                                    {/* SORT INDICATOR */}
+                                    {sortConfig.key === i && (
+                                       <span className="ml-1 text-blue-400">
+                                          {sortConfig.direction === 'asc' ? <ArrowUpAZ className="w-3.5 h-3.5"/> : <ArrowDownZA className="w-3.5 h-3.5"/>}
+                                       </span>
+                                    )}
+
+                                    {/* COLUMN MENU TRIGGER */}
+                                    <button 
+                                       className={clsx("col-menu-trigger p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white transition-opacity", activeMenuCol === i ? "opacity-100 bg-slate-700 text-white" : "opacity-0 group-hover:opacity-100")}
+                                       onClick={(e) => { e.stopPropagation(); setActiveMenuCol(activeMenuCol === i ? null : i); }}
+                                    >
+                                       <MoreVertical className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+
+                                  {/* DROPDOWN MENU */}
+                                  {activeMenuCol === i && (
+                                     <div className="absolute top-full right-2 mt-1 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-[70] py-1 text-xs text-slate-300 animate-in fade-in zoom-in-95 duration-100" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => handleSort(i, 'asc')} className="w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center gap-2"><ArrowUpAZ className="w-3.5 h-3.5 text-slate-500"/> Sort A to Z</button>
+                                        <button onClick={() => handleSort(i, 'desc')} className="w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center gap-2"><ArrowDownZA className="w-3.5 h-3.5 text-slate-500"/> Sort Z to A</button>
+                                        <div className="h-px bg-slate-800 my-1"></div>
+                                        <button onClick={() => toggleCompactMode(i)} className="w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center justify-between">
+                                           <div className="flex items-center gap-2"><Hash className="w-3.5 h-3.5 text-slate-500"/> Short Form (100K)</div>
+                                           {compactColumns.includes(i) && <CheckSquare className="w-3.5 h-3.5 text-blue-500"/>}
+                                        </button>
+                                     </div>
+                                  )}
                                 </th>
                               );
                             })}
@@ -503,18 +601,15 @@ const ModelDetail = () => {
 
                         {/* BODY */}
                         <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
-                          {sheetData.slice(1).map((row, rowIndex) => {
+                          {processedSheetData.slice(1).map((row, rowIndex) => {
                             const actualRowIndex = rowIndex + 1;
-                            
-                            // Row Object for Logic Engine
                             const rowObject = {};
-                            sheetData[0].forEach((header, index) => { rowObject[header] = row[index]; });
+                            processedSheetData[0].forEach((header, index) => { rowObject[header] = row[index]; });
 
-                            // Focus Mode Logic
                             let isRowDimmed = false;
                             if (viewMode === 'focus') {
                                const hasAlert = row.some((cell, i) => {
-                                  const colName = sheetData[0][i];
+                                  const colName = processedSheetData[0][i];
                                   const { style } = getCellStyle(cell, colName, rowObject, selectedModel.id, activeSheet, manifest);
                                   return style?.backgroundColor && (style.backgroundColor.includes('239, 68, 68') || style.backgroundColor.includes('245, 158, 11'));
                                });
@@ -522,25 +617,19 @@ const ModelDetail = () => {
                             }
 
                             return (
-                              <tr 
-                                key={rowIndex} 
-                                className={clsx(
-                                  "transition-all duration-500 group",
-                                  isRowDimmed ? "opacity-20 grayscale hover:opacity-50" : "opacity-100 hover:bg-blue-900/10"
-                                )}
-                              >
-                                {showRowNumbers && (
-                                  <td className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500" style={{ backgroundColor: BG_COLOR }}>{actualRowIndex + 1}</td>
-                                )}
-
+                              <tr key={rowIndex} className={clsx("transition-all duration-500 group", isRowDimmed ? "opacity-20 grayscale hover:opacity-50" : "opacity-100 hover:bg-blue-900/10")}>
+                                {showRowNumbers && <td className="px-2 py-3 border-r border-slate-700/50 sticky left-0 z-[30] text-center font-mono text-xs text-slate-500 bg-slate-900">{actualRowIndex}</td>}
+                                
                                 {row.map((cell, cellIndex) => {
-                                  const columnName = sheetData[0][cellIndex];
+                                  const columnName = processedSheetData[0][cellIndex];
                                   if (hiddenColumns.includes(columnName)) return null;
-
                                   const mergeProps = getMergeProps(actualRowIndex, cellIndex);
                                   if (mergeProps?.isHidden) return null;
 
                                   const { className, style } = getCellStyle(cell, columnName, rowObject, selectedModel.id, activeSheet, manifest);
+                                  
+                                  // --- APPLY FORMATTING ---
+                                  const formattedValue = formatCellValue(cell, columnName, compactColumns.includes(cellIndex));
 
                                   return (
                                     <td 
@@ -552,8 +641,7 @@ const ModelDetail = () => {
                                         className,
                                         isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
                                         mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
-                                        cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
-                                        cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
+                                        cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700"
                                       )}
                                       style={{
                                         backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
@@ -562,8 +650,8 @@ const ModelDetail = () => {
                                       }}
                                     >
                                       {isEditMode ? (
-                                        <input type="text" defaultValue={cell} onBlur={(e) => handleCellEdit(rowIndex, cellIndex, e.target.value)} className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                                      ) : ( cell )}
+                                        <input type="text" defaultValue={cell} className="bg-slate-800 border border-blue-500/50 text-white px-2 py-1 rounded w-full"/>
+                                      ) : ( formattedValue )}
                                     </td>
                                   );
                                 })}
