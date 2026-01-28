@@ -402,7 +402,8 @@ const ModelDetail = () => {
                       "transition-all duration-500 ease-out origin-top", 
                       // Presentation Container Logic
                       viewMode === 'presentation' && isPresentationMode 
-                        ? "w-[94%] mx-auto mt-4 mb-4 shadow-2xl rounded-xl border border-slate-700/50 overflow-hidden bg-slate-900" 
+                        // CHANGE: Replaced 'overflow-hidden' with 'overflow-x-auto custom-scrollbar'
+                        ? "w-[94%] mx-auto mt-4 mb-4 shadow-2xl rounded-xl border border-slate-700/50 overflow-x-auto custom-scrollbar bg-slate-900" 
                         : "min-w-full"
                     )}
                   >
@@ -458,17 +459,46 @@ const ModelDetail = () => {
                       </thead>
 
                       {/* BODY - Row Index 1+ */}
+                      {/* BODY - Z-Index 0 (or 40 if frozen) */}
                       <tbody className="divide-y divide-slate-800/50 bg-slate-900 relative z-0">
                         {sheetData.slice(1).map((row, rowIndex) => {
                           const actualRowIndex = rowIndex + 1; // 0 is header, so data starts at 1
                           
+                          // 1. Construct Row Object
                           const rowObject = {};
                           sheetData[0].forEach((header, index) => {
                             rowObject[header] = row[index];
                           });
 
+                          // 2. FOCUS MODE LOGIC: Determine if row should be dimmed
+                          let isRowDimmed = false;
+                          if (viewMode === 'focus') {
+                             // Check if any cell in this row has a "Warning" style (Red or Amber)
+                             const hasAlert = row.some((cell, i) => {
+                                const colName = sheetData[0][i];
+                                // We safely call the engine to check the style
+                                const { style } = getCellStyle(
+                                  cell, colName, rowObject, selectedModel.id, activeSheet, manifest
+                                );
+                                // Check for Red (239, 68, 68) or Amber (245, 158, 11) RGB values
+                                return style?.backgroundColor && (
+                                  style.backgroundColor.includes('239, 68, 68') || 
+                                  style.backgroundColor.includes('245, 158, 11')
+                                );
+                             });
+                             // If no alert found, dim this row
+                             isRowDimmed = !hasAlert;
+                          }
+
                           return (
-                            <tr key={rowIndex} className="hover:bg-blue-900/10 transition-colors group">
+                            <tr 
+                              key={rowIndex} 
+                              className={clsx(
+                                "transition-all duration-500 group",
+                                // Apply Dimming: 20% opacity for noise, 50% on hover so you can still read it
+                                isRowDimmed ? "opacity-20 grayscale hover:opacity-50" : "opacity-100 hover:bg-blue-900/10"
+                              )}
+                            >
                               
                               {/* Row Number */}
                               {showRowNumbers && (
