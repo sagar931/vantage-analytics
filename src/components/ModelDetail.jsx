@@ -13,7 +13,8 @@ import {
   Layout, Maximize, Scan, 
   // Column Manager
   Eye, EyeOff, CheckSquare, Square,
-  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, GitMerge, ArrowRightLeft, Move, GripHorizontal, FileSpreadsheet, PieChart, Palette
+  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, 
+  GitMerge, ArrowRightLeft, Move, GripHorizontal, FileSpreadsheet, PieChart, Palette, RotateCcw
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -106,7 +107,7 @@ const getTrendDelta = (currentVal, currentRow, colIndex, comparisonData, current
 };
 
 // --- NEW: SNAP-TO-GRID WIDGET COMPONENT (WITH COLOR PICKER) ---
-const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete, containerWidth, onColorChange, activeColor }) => {
+const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete, containerWidth, onColorChange, activeColor, onResetZoom, isZoomed }) => {
   const COLS = 12; 
   const ROW_HEIGHT = 60; 
   const MARGIN = 16;
@@ -256,6 +257,16 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
             
             {/* Toolbar */}
             <div className="flex items-center gap-2 no-drag">
+              {/* Reset Zoom Button */}
+               {isZoomed && (
+                  <button 
+                     onClick={(e) => { e.stopPropagation(); onResetZoom(); }} 
+                     className="text-blue-400 hover:text-white p-1 rounded hover:bg-slate-700 mr-1 transition-colors"
+                     title="Reset Zoom"
+                  >
+                     <RotateCcw className="w-3 h-3" />
+                  </button>
+               )}
                {/* Color Picker */}
                <div className="relative">
                   <button onClick={() => setShowPalette(!showPalette)} className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700"><Palette className="w-3 h-3" /></button>
@@ -337,6 +348,7 @@ const ModelDetail = () => {
   const [activeTab, setActiveTab] = useState('table'); 
   const [isChartBuilderOpen, setIsChartBuilderOpen] = useState(false);
   const [chartToDelete, setChartToDelete] = useState(null);
+  const [zoomStates, setZoomStates] = useState({}); // Stores zoom range per chart: { index: { left, right } }
 
   // --- HELPER: FIND PREVIOUS FILE (AUTO-DISCOVERY) ---
 // --- HELPER: AUTO-GENERATE COLUMN MAPPING ---
@@ -1215,24 +1227,39 @@ const getColumnWidth = (index) => {
                           layout={effectiveLayout} 
                           containerWidth={canvasWidth}
                           isEditing={!isPresentationMode} 
-                          activeColor={activeColor} // <--- Fix: Pass color to Widget UI
+                          activeColor={activeColor}
                           onDelete={() => setChartToDelete(idx)}
                           
-                          // C. Handle Layout Save
-                          onLayoutChange={(newLayout) => {
-                             updateChart(selectedModel.id, activeSheet, idx, { layout: newLayout });
+                          // --- NEW: ZOOM PROPS ---
+                          isZoomed={!!zoomStates[idx]}
+                          onResetZoom={() => {
+                             const newZooms = { ...zoomStates };
+                             delete newZooms[idx];
+                             setZoomStates(newZooms);
                           }}
 
-                          // D. Handle Color Save
+                          // Layout Save
+                          onLayoutChange={(newLayout) => {
+                             const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
+                             currentCharts[idx] = { ...currentCharts[idx], layout: newLayout };
+                             updateManifest(selectedModel.id, activeSheet, currentCharts);
+                          }}
+                          // Color Save
                           onColorChange={(newColor) => {
-                             updateChart(selectedModel.id, activeSheet, idx, { colors: [newColor] });
+                             const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
+                             currentCharts[idx] = { ...currentCharts[idx], colors: [newColor] }; 
+                             updateManifest(selectedModel.id, activeSheet, currentCharts);
                           }}
                         >
-                           {/* FIX: Removed pointer-events-none so Tooltips work */}
+                           {/* FIX: Removed pointer-events-none */}
                            <div className="w-full h-full select-none">
                               <ChartRenderer 
                                  config={{ ...chartConfig, colors: [activeColor] }} 
                                  data={sheetData.slice(1).map(row => { const obj = {}; sheetData[0].forEach((key, i) => obj[key] = row[i]); return obj; })} 
+                                 
+                                 // --- NEW: ZOOM HANDLERS ---
+                                 zoomDomain={zoomStates[idx]}
+                                 onZoom={(left, right) => setZoomStates(prev => ({ ...prev, [idx]: { left, right } }))}
                               />
                            </div>
                         </DraggableWidget>
