@@ -13,7 +13,7 @@ import {
   Layout, Maximize, Scan, 
   // Column Manager
   Eye, EyeOff, CheckSquare, Square,
-  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, GitMerge, ArrowRightLeft, Move, GripHorizontal, FileSpreadsheet, PieChart
+  BarChart3, Table, Trash2, MoreVertical, ArrowUpAZ, ArrowDownZA, Hash, History, GitMerge, ArrowRightLeft, Move, GripHorizontal, FileSpreadsheet, PieChart, Palette
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -105,92 +105,83 @@ const getTrendDelta = (currentVal, currentRow, colIndex, comparisonData, current
   };
 };
 
-// --- NEW: DRAGGABLE WIDGET COMPONENT ---
-// --- NEW: SNAP-TO-GRID WIDGET COMPONENT ---
-const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete, containerWidth }) => {
-  // GRID CONSTANTS
-  const COLS = 12; // 12-column grid like Bootstrap
-  const ROW_HEIGHT = 60; // Base height unit
+// --- NEW: SNAP-TO-GRID WIDGET COMPONENT (WITH COLOR PICKER) ---
+const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete, containerWidth, onColorChange, activeColor }) => {
+  const COLS = 12; 
+  const ROW_HEIGHT = 60; 
   const MARGIN = 16;
   
-  // Calculate Pixel width of one column dynamically
   const colWidthPixel = (containerWidth - (MARGIN * (COLS - 1))) / COLS;
 
-  // Initial State (Grid Units) -> Fallback to 6 cols x 6 rows
   const [gridRect, setGridRect] = useState(layout || { x: 0, y: 0, w: 6, h: 6 });
-  
-  // Visual State (Pixels for smooth dragging)
   const [pixelRect, setPixelRect] = useState(null); 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [showPalette, setShowPalette] = useState(false); 
+  
   const dragStartRef = useRef({ x: 0, y: 0 });
   const initialPixelRef = useRef(null);
 
-  // Convert Grid Units -> Pixels for Rendering
-  const getPixelStyle = () => {
-    // If dragging/resizing, use the temporary pixel values
-    if (pixelRect) return {
-       left: pixelRect.x,
-       top: pixelRect.y,
-       width: pixelRect.w,
-       height: pixelRect.h
-    };
+  // Aesthetic Color Themes
+  const COLORS = [
+    { name: 'Blue', val: '#3b82f6' },
+    { name: 'Red', val: '#ef4444' },
+    { name: 'Green', val: '#10b981' },
+    { name: 'Orange', val: '#f59e0b' },
+    { name: 'Purple', val: '#8b5cf6' },
+    { name: 'Pink', val: '#ec4899' },
+  ];
 
-    // Otherwise, calculate standard grid position
+  const getPixelStyle = () => {
+    if (pixelRect) return {
+       left: pixelRect.x, top: pixelRect.y, width: pixelRect.w, height: pixelRect.h, zIndex: 50
+    };
     return {
        left: gridRect.x * (colWidthPixel + MARGIN),
        top: gridRect.y * (ROW_HEIGHT + MARGIN),
        width: gridRect.w * (colWidthPixel + MARGIN) - MARGIN,
        height: gridRect.h * (ROW_HEIGHT + MARGIN) - MARGIN,
-       transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)' // Smooth Snap Animation
+       transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+       zIndex: showPalette ? 60 : 10 // Bring to front when picking color
     };
   };
 
-  // Helper: Snap Pixels to Nearest Grid Unit
   const snapToGrid = (pxRect) => {
     const x = Math.round(pxRect.x / (colWidthPixel + MARGIN));
     const y = Math.round(pxRect.y / (ROW_HEIGHT + MARGIN));
-    const w = Math.max(2, Math.round(pxRect.w / (colWidthPixel + MARGIN))); // Min 2 cols
-    const h = Math.max(3, Math.round(pxRect.h / (ROW_HEIGHT + MARGIN))); // Min 3 rows
+    const w = Math.max(2, Math.round(pxRect.w / (colWidthPixel + MARGIN))); 
+    const h = Math.max(3, Math.round(pxRect.h / (ROW_HEIGHT + MARGIN))); 
     return { x, y, w, h };
   };
 
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging && !isResizing) return;
-      
       const dx = e.clientX - dragStartRef.current.x;
       const dy = e.clientY - dragStartRef.current.y;
 
       if (isDragging) {
         setPixelRect({
-          x: initialPixelRef.current.x + dx,
-          y: initialPixelRef.current.y + dy,
-          w: initialPixelRef.current.w,
-          h: initialPixelRef.current.h
+          x: initialPixelRef.current.x + dx, y: initialPixelRef.current.y + dy,
+          w: initialPixelRef.current.w, h: initialPixelRef.current.h
         });
       } else if (isResizing) {
         setPixelRect({
-           x: initialPixelRef.current.x,
-           y: initialPixelRef.current.y,
-           w: Math.max(100, initialPixelRef.current.w + dx),
-           h: Math.max(100, initialPixelRef.current.h + dy)
+           x: initialPixelRef.current.x, y: initialPixelRef.current.y,
+           w: Math.max(100, initialPixelRef.current.w + dx), h: Math.max(100, initialPixelRef.current.h + dy)
         });
       }
     };
 
     const handleMouseUp = () => {
       if (isDragging || isResizing) {
-        // SNAP LOGIC
         const finalGrid = snapToGrid(pixelRect);
-        
-        // Boundaries Check
         if (finalGrid.x < 0) finalGrid.x = 0;
         if (finalGrid.x + finalGrid.w > COLS) finalGrid.x = COLS - finalGrid.w;
         if (finalGrid.y < 0) finalGrid.y = 0;
 
         setGridRect(finalGrid);
-        setPixelRect(null); // Clear pixel override to let Grid take over
+        setPixelRect(null); 
         setIsDragging(false);
         setIsResizing(false);
         if (onLayoutChange) onLayoutChange(finalGrid);
@@ -210,64 +201,65 @@ const DraggableWidget = ({ children, layout, onLayoutChange, isEditing, onDelete
   // Sync external layout changes
   useEffect(() => { if (!isDragging && !isResizing && layout) setGridRect(layout); }, [layout]);
 
-  if (!containerWidth) return null; // Wait for container measurement
-
-  const style = getPixelStyle();
+  if (!containerWidth) return null; 
 
   return (
     <div 
-      className={clsx(
-         "absolute flex flex-col bg-slate-900 border rounded-xl shadow-2xl", 
-         isDragging ? "border-blue-500 shadow-blue-900/50 z-50 cursor-grabbing" : "border-slate-800 z-10 transition-all"
-      )}
-      style={style}
+      className={clsx("absolute flex flex-col bg-slate-900 border rounded-xl shadow-2xl", isDragging ? "border-blue-500 shadow-blue-900/50 cursor-grabbing" : "border-slate-800 transition-all")}
+      style={getPixelStyle()}
     >
-      {/* Header */}
       {isEditing && (
          <div 
             className="h-8 bg-slate-800/50 border-b border-slate-700/50 flex items-center justify-between px-2 cursor-grab active:cursor-grabbing group"
             onMouseDown={(e) => { 
+               if(e.target.closest('.no-drag')) return; // Don't drag if clicking buttons
                e.preventDefault(); 
                setIsDragging(true); 
                dragStartRef.current = { x: e.clientX, y: e.clientY }; 
-               // Capture current rendered pixels for smooth drag start
                const rect = e.currentTarget.parentElement.getBoundingClientRect();
                const parent = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
-               initialPixelRef.current = { 
-                  x: rect.left - parent.left, 
-                  y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop, 
-                  w: rect.width, 
-                  h: rect.height 
-               };
+               initialPixelRef.current = { x: rect.left - parent.left, y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop, w: rect.width, h: rect.height };
                setPixelRect(initialPixelRef.current);
             }}
          >
             <Move className="w-3 h-3 text-slate-500 group-hover:text-blue-400" />
-            <div className="flex gap-2">
-               {onDelete && <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-slate-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>}
+            
+            {/* Toolbar */}
+            <div className="flex items-center gap-2 no-drag">
+               {/* Color Picker */}
+               <div className="relative">
+                  <button onClick={() => setShowPalette(!showPalette)} className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700"><Palette className="w-3 h-3" /></button>
+                  {showPalette && (
+                     <div className="absolute top-full right-0 mt-2 bg-slate-800 border border-slate-700 p-2 rounded-lg shadow-xl grid grid-cols-3 gap-2 z-50 w-24">
+                        {COLORS.map(c => (
+                           <button 
+                              key={c.name} 
+                              onClick={() => { onColorChange(c.val); setShowPalette(false); }}
+                              className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform"
+                              style={{ backgroundColor: c.val }}
+                              title={c.name}
+                           />
+                        ))}
+                     </div>
+                  )}
+               </div>
+               
+               {onDelete && <button onClick={onDelete} className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-700"><Trash2 className="w-3 h-3" /></button>}
             </div>
          </div>
       )}
       
       <div className="flex-1 overflow-hidden relative p-1">{children}</div>
 
-      {/* Resize Handle */}
       {isEditing && (
          <div 
-            className="absolute bottom-1 right-1 cursor-nwse-resize text-slate-600 hover:text-blue-400 p-1"
+            className="absolute bottom-1 right-1 cursor-nwse-resize text-slate-600 hover:text-blue-400 p-1 no-drag"
             onMouseDown={(e) => { 
-               e.preventDefault(); 
-               e.stopPropagation(); 
-               setIsResizing(true); 
+               e.preventDefault(); e.stopPropagation(); setIsResizing(true); 
                dragStartRef.current = { x: e.clientX, y: e.clientY }; 
                const rect = e.currentTarget.parentElement.getBoundingClientRect();
                const parent = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
-               initialPixelRef.current = { 
-                  x: rect.left - parent.left, 
-                  y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop,
-                  w: rect.width, 
-                  h: rect.height 
-               };
+               initialPixelRef.current = { x: rect.left - parent.left, y: rect.top - parent.top + e.currentTarget.parentElement.parentElement.scrollTop, w: rect.width, h: rect.height };
                setPixelRect(initialPixelRef.current);
             }}
          >
@@ -1104,12 +1096,48 @@ const ModelDetail = () => {
                     ))}
                     
                     {/* Empty State */}
-                    {(!manifest?.visualizations?.[selectedModel.id]?.[activeSheet] || manifest.visualizations[selectedModel.id][activeSheet].length === 0) && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <BarChart3 className="w-12 h-12 text-slate-800 mb-4" />
-                        <p className="text-slate-600 font-medium">No charts defined. Create a new widget to begin.</p>
-                      </div>
-                    )}
+                    {manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.map((chartConfig, idx) => {
+                      
+                      // FIX STACKING: Calculate Smart Default if layout is missing
+                      // 2 columns wide grid (Index 0->(0,0), Index 1->(6,0), Index 2->(0,6)...)
+                      const effectiveLayout = chartConfig.layout || { 
+                         x: (idx % 2) * 6, 
+                         y: Math.floor(idx / 2) * 6, 
+                         w: 6, 
+                         h: 6 
+                      };
+
+                      return (
+                        <DraggableWidget
+                          key={idx}
+                          layout={effectiveLayout} 
+                          containerWidth={canvasWidth}
+                          isEditing={!isPresentationMode} 
+                          onDelete={() => setChartToDelete(idx)}
+                          // Handle Layout Save
+                          onLayoutChange={(newLayout) => {
+                             const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
+                             currentCharts[idx] = { ...currentCharts[idx], layout: newLayout };
+                             updateManifest(selectedModel.id, activeSheet, currentCharts);
+                          }}
+                          // Handle Color Save
+                          onColorChange={(newColor) => {
+                             const currentCharts = [...(manifest.visualizations[selectedModel.id][activeSheet] || [])];
+                             // We save the color into a new 'colors' array property on the config
+                             currentCharts[idx] = { ...currentCharts[idx], colors: [newColor] }; 
+                             updateManifest(selectedModel.id, activeSheet, currentCharts);
+                          }}
+                        >
+                           <div className="w-full h-full pointer-events-none select-none">
+                              {/* Pass the custom color to the renderer */}
+                              <ChartRenderer 
+                                 config={{ ...chartConfig, colors: chartConfig.colors || ['#3b82f6'] }} 
+                                 data={sheetData.slice(1).map(row => { const obj = {}; sheetData[0].forEach((key, i) => obj[key] = row[i]); return obj; })} 
+                              />
+                           </div>
+                        </DraggableWidget>
+                      );
+                    })}
                   </div>
                 </div>
               )}
