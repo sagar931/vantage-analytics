@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle } from 'lucide-react';
+import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle, Table } from 'lucide-react';
 
 const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
   const [title, setTitle] = useState('');
@@ -44,7 +44,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
       xAxis,
       dataKeys,
       threshold: threshold ? parseFloat(threshold) : null,
-            colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4', '#f43f5e']
+      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4', '#f43f5e']
     };
     
     onSave(newChart);
@@ -77,21 +77,30 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
                 placeholder="e.g. Volume Comparison"
               />
             </div>
+            
+            {/* --- FIX: CLEANED UP CHART TYPE SELECTOR --- */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Type</label>
-              <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
-                {['bar', 'line', 'area', 'donut'].map(t => (
-                  <button 
-                    key={t}
-                    onClick={() => {
-                       setType(t);
-                       if(t === 'donut') setDataKeys([]); 
-                    }}
-                    className={`flex-1 capitalize text-sm py-1 rounded ${type === t ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    {t}
-                  </button>
-                ))}
+              <div className="flex gap-2">
+                  {['bar', 'line', 'area', 'donut', 'table'].map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setType(t)}
+                      className={`flex-1 py-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
+                        type === t 
+                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20' 
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      {t === 'bar' && <BarChart2 className="w-5 h-5" />}
+                      {t === 'line' && <TrendingUp className="w-5 h-5" />}
+                      {t === 'area' && <TrendingUp className="w-5 h-5 fill-current opacity-50" />}
+                      {t === 'donut' && <PieChart className="w-5 h-5" />}
+                      {t === 'table' && <Table className="w-5 h-5" />} 
+                      
+                      <span className="text-xs font-medium uppercase tracking-wider">{t}</span>
+                    </button>
+                  ))}
               </div>
             </div>
           </div>
@@ -133,7 +142,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
             </div>
           </div>
 
-          {type !== 'donut' && (
+          {type !== 'donut' && type !== 'table' && (
              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
                   <AlertCircle className="w-3 h-3 text-red-400" /> Threshold Alert (Optional)

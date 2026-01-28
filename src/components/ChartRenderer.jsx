@@ -7,12 +7,12 @@ import {
 // --- HELPER 1: PREMIUM SHADE GENERATOR ---
 const getColorPalette = (baseColor, count) => {
   const THEMES = {
-    '#3b82f6': ['#3b82f6', '#60a5fa', '#2563eb', '#93c5fd', '#1d4ed8'], // Blue
-    '#ef4444': ['#ef4444', '#f87171', '#dc2626', '#fca5a5', '#b91c1c'], // Red
-    '#10b981': ['#10b981', '#34d399', '#059669', '#6ee7b7', '#047857'], // Green
-    '#f59e0b': ['#f59e0b', '#fbbf24', '#d97706', '#fcd34d', '#b45309'], // Orange
-    '#8b5cf6': ['#8b5cf6', '#a78bfa', '#7c3aed', '#c4b5fd', '#6d28d9'], // Purple
-    '#ec4899': ['#ec4899', '#f472b6', '#db2777', '#fbcfe8', '#be185d'], // Pink
+    '#3b82f6': ['#3b82f6', '#60a5fa', '#2563eb', '#93c5fd', '#1d4ed8'], 
+    '#ef4444': ['#ef4444', '#f87171', '#dc2626', '#fca5a5', '#b91c1c'], 
+    '#10b981': ['#10b981', '#34d399', '#059669', '#6ee7b7', '#047857'], 
+    '#f59e0b': ['#f59e0b', '#fbbf24', '#d97706', '#fcd34d', '#b45309'], 
+    '#8b5cf6': ['#8b5cf6', '#a78bfa', '#7c3aed', '#c4b5fd', '#6d28d9'], 
+    '#ec4899': ['#ec4899', '#f472b6', '#db2777', '#fbcfe8', '#be185d'], 
   };
 
   if (THEMES[baseColor]) {
@@ -74,23 +74,17 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
   const activePalette = getColorPalette(colors[0], validDataKeys.length);
 
   // --- ZOOM LOGIC: DATA SLICING ---
-  // Instead of relying on Axis Domain, we physically slice the data array.
-  // This guarantees granularity even for Categorical data (Strings).
   const getVisibleData = () => {
     if (!zoomDomain || !zoomDomain.left || !zoomDomain.right) return data;
-
     const leftIndex = data.findIndex(item => item[xAxis] === zoomDomain.left);
     const rightIndex = data.findIndex(item => item[xAxis] === zoomDomain.right);
-
     if (leftIndex === -1 || rightIndex === -1) return data;
-
     const start = Math.min(leftIndex, rightIndex);
     const end = Math.max(leftIndex, rightIndex);
-
     return data.slice(start, end + 1);
   };
 
-  const visibleData = getVisibleData(); // Use this for rendering!
+  const visibleData = getVisibleData(); 
 
   // --- EVENT HANDLERS ---
   const handleZoom = () => {
@@ -99,23 +93,60 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
       setRefAreaRight('');
       return;
     }
-
-    // Identify indices to ensure correct order
     let left = refAreaLeft;
     let right = refAreaRight;
-    
-    // Check indices to handle Right-to-Left drag
     const leftIdx = data.findIndex(i => i[xAxis] === left);
     const rightIdx = data.findIndex(i => i[xAxis] === right);
-
     if (leftIdx > rightIdx) [left, right] = [right, left];
-
     if (onZoom) onZoom(left, right);
     setRefAreaLeft('');
     setRefAreaRight('');
   };
 
-  // --- PIE / DONUT ---
+  // --- 1. TABLE / CROSS-TAB VIEW (NEW FEATURE) ---
+  if (type === 'table') {
+    return (
+      <div className="w-full h-full flex flex-col p-4 overflow-hidden">
+         <h3 className="text-white font-bold mb-3 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm flex-shrink-0">
+            {config.title || 'Data Table'}
+         </h3>
+         <div className="flex-1 overflow-auto rounded-lg border border-slate-800 bg-slate-900/50 custom-scrollbar">
+            <table className="w-full text-left text-sm border-collapse">
+               <thead className="sticky top-0 bg-slate-900 z-10 shadow-lg shadow-slate-950/50">
+                  <tr>
+                     <th className="px-4 py-3 font-semibold text-slate-400 border-b border-slate-700 whitespace-nowrap">
+                        {xAxis}
+                     </th>
+                     {validDataKeys.map((key, i) => (
+                        <th key={key} className="px-4 py-3 font-semibold text-slate-300 border-b border-slate-700 whitespace-nowrap text-right">
+                           {/* Color-coded header dot */}
+                           <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: activePalette[i % activePalette.length] }}></span>
+                           {key}
+                        </th>
+                     ))}
+                  </tr>
+               </thead>
+               <tbody>
+                  {visibleData.map((row, idx) => (
+                     <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-2 text-slate-300 font-mono text-xs border-r border-slate-800/50">
+                           {formatExcelDate(row[xAxis])}
+                        </td>
+                        {validDataKeys.map((key) => (
+                           <td key={key} className="px-4 py-2 text-slate-200 text-right font-mono text-xs">
+                              {Number(row[key])?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '-'}
+                           </td>
+                        ))}
+                     </tr>
+                  ))}
+               </tbody>
+            </table>
+         </div>
+      </div>
+    );
+  }
+
+  // --- 2. PIE / DONUT ---
   if (type === 'donut') {
     const dataKey = validDataKeys[0];
     if (!dataKey) return null;
@@ -163,7 +194,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  // --- BAR / LINE / AREA ---
+  // --- 3. BAR / LINE / AREA ---
   return (
     <div className="w-full h-full flex flex-col p-4">
       <div className="flex justify-between items-center mb-2">
@@ -175,7 +206,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart 
-             data={visibleData} // <--- FIX: Use sliced data
+             data={visibleData} 
              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
              onMouseDown={(e) => e && setRefAreaLeft(e.activeLabel)}
              onMouseMove={(e) => refAreaLeft && e && setRefAreaRight(e.activeLabel)}
@@ -191,7 +222,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               tickLine={false}
               axisLine={{ stroke: '#475569' }}
               dy={10}
-              // Removed 'domain' prop here because we are physically slicing the data
             />
             
             <YAxis 
@@ -220,7 +250,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                <ReferenceLine y={Number(threshold)} stroke="#ef4444" strokeDasharray="3 3" />
             )}
 
-            {/* Drag Selection Box - Show it on FULL data context if needed, but here simple box is fine */}
             {refAreaLeft && refAreaRight && (
               <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="#3b82f6" fillOpacity={0.3} />
             )}
