@@ -461,14 +461,17 @@ const ModelDetail = () => {
                                     colSpan={mergeProps?.colSpan || 1}
                                     rowSpan={mergeProps?.rowSpan || 1}
                                     className={clsx(
-                                      "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors truncate align-top",
-                                      className,
-                                      isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
-                                      
-                                      // FROZEN LOGIC
-                                      cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
-                                      cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
-                                    )}
+                                        "border-r border-slate-800/30 last:border-r-0 text-slate-300 group-hover:text-white transition-colors", // Removed 'truncate align-top'
+                                        className,
+                                        isPresentationMode ? "px-10 py-5 text-base" : "px-6 py-3 text-sm",
+                                        
+                                        // NEW: Center Merged Cells
+                                        mergeProps?.isStart ? "text-center align-middle" : "text-left align-top truncate",
+
+                                        // FROZEN LOGIC
+                                        cellIndex < frozenColCount && "sticky z-30 border-r border-slate-700",
+                                        cellIndex === frozenColCount - 1 && "shadow-[4px_0_8px_-2px_rgba(0,0,0,0.5)] border-r-2 border-r-blue-500/30"
+                                        )}
                                     style={{
                                       backgroundColor: cellIndex < frozenColCount ? BG_COLOR : undefined, 
                                       ...(cellIndex < frozenColCount ? { left: getStickyLeft(cellIndex) } : {}),
