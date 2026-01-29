@@ -1200,9 +1200,9 @@ const ModelDetail = () => {
                       : "hover:bg-slate-800/50 border-transparent hover:border-slate-700/50"
                   )}
                 >
-                  <div className="text-right hidden lg:block">
-                    <div className="text-xs font-bold text-slate-700 dark:text-white">{user?.name || 'Admin User'}</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{user?.department || 'Analytics'}</div>
+                  <div className="text-right hidden lg:block mr-2">
+                    <div className="text-sm font-bold text-white leading-tight tracking-tight">{user?.name || 'Admin User'}</div>
+                    <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-tight mt-0.5">{user?.department || 'Analytics'}</div>
                   </div>
                   
                   {/* Avatar */}
