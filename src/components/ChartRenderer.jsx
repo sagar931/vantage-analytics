@@ -291,7 +291,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart 
              data={visibleData} 
-             margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+             margin={{ top: showDataLabels ? 40 : 10, right: 30, left: 0, bottom: 0 }}
              onMouseDown={(e) => e && setRefAreaLeft(e.activeLabel)}
              onMouseMove={(e) => refAreaLeft && e && setRefAreaRight(e.activeLabel)}
              onMouseUp={handleZoom}
@@ -311,6 +311,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               interval={0} 
             />
             <YAxis 
+              padding={{ top: 20 }}
               stroke="#94a3b8" 
               fontSize={11} 
               tickLine={false}
