@@ -159,6 +159,23 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                 {type === 'donut' ? 'Value Size (Pick 1)' : 'Y-Axis (Select Multiple)'}
               </label>
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-48 overflow-y-auto custom-scrollbar">
+                
+                {/* --- NEW: FREQUENCY OPTION (Only for Donut) --- */}
+                {type === 'donut' && (
+                  <button
+                    onClick={() => setDataKeys(['Frequency (Count)'])}
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 flex justify-between items-center ${
+                      dataKeys.includes('Frequency (Count)') 
+                        ? 'bg-purple-600/20 text-purple-400 border border-purple-500/50' 
+                        : 'text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className="truncate italic font-medium">Frequency (Row Count)</span>
+                    {dataKeys.includes('Frequency (Count)') && <div className="w-2 h-2 rounded-full bg-purple-500"></div>}
+                  </button>
+                )}
+
+                {/* Existing Columns */}
                 {columns.map(col => (
                   <button
                     key={col}

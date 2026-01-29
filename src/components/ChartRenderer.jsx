@@ -4,6 +4,17 @@ import {
   Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceArea 
 } from 'recharts';
 
+  // --- HELPER: DISTINCT COLORS FOR DONUTS ---
+const DISTINCT_COLORS = [
+  '#3b82f6', // Blue
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#8b5cf6', // Violet
+  '#ec4899', // Pink
+  '#06b6d4', // Cyan
+  '#84cc16', // Lime
+];
 // --- HELPER 1: PREMIUM SHADE GENERATOR ---
 const getColorPalette = (baseColor, count) => {
   const THEMES = {
@@ -13,7 +24,9 @@ const getColorPalette = (baseColor, count) => {
     '#f59e0b': ['#f59e0b', '#fbbf24', '#d97706', '#fcd34d', '#b45309'], 
     '#8b5cf6': ['#8b5cf6', '#a78bfa', '#7c3aed', '#c4b5fd', '#6d28d9'], 
   };
-  
+
+
+    
   const theme = THEMES[baseColor] || THEMES['#3b82f6'];
   if (count <= 1) return [baseColor];
   
@@ -46,6 +59,28 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
       {`${(percent * 100).toFixed(0)}%`}
     </text>
   );
+};
+
+// --- HELPER: PREMIUM CUSTOM TOOLTIP ---
+const CustomDonutTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-[#0b1121]/95 backdrop-blur-xl border border-slate-700 p-3 rounded-xl shadow-2xl min-w-[150px]">
+        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700/50">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.payload.fill }}></div>
+          <span className="text-sm font-bold text-white">{data.name}</span>
+        </div>
+        <div className="flex justify-between items-end">
+          <span className="text-xs text-slate-400">Value:</span>
+          <span className="text-lg font-mono font-bold text-blue-400">
+            {data.value.toLocaleString()}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
 };
 
 // --- MAIN COMPONENT ---
@@ -155,44 +190,69 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
 
   // --- 2. PIE / DONUT ---
   if (type === 'donut') {
-    const dataKey = validDataKeys[0];
-    if (!dataKey) return null;
+    // A. Handle "Frequency" Logic
+    // If no key is selected or special key is present, we default to Frequency mode
+    const isFrequency = dataKeys.includes('Frequency (Count)');
+    const dataKey = isFrequency ? 'Frequency (Count)' : validDataKeys[0];
+    
+    if (!dataKey) return <div className="text-slate-500 flex items-center justify-center h-full">Select a Value</div>;
 
+    // B. Aggregate Data
     const pieData = data.reduce((acc, row) => {
       const name = row[xAxis] || 'Unknown';
-      const value = Number(row[dataKey]) || 0;
+      // If Frequency: Value is 1 (Count row). If Column: Value is row[col]
+      const value = isFrequency ? 1 : (Number(row[dataKey]) || 0);
+      
       const existing = acc.find(i => i.name === name);
       if (existing) existing.value += value;
-      else acc.push({ name, value });
+      else acc.push({ name, value, fill: '' }); // Prepare for fill
       return acc;
-    }, []);
+    }, [])
+    // Sort by value (descending) so biggest slices come first
+    .sort((a, b) => b.value - a.value);
+
+    // C. Assign Distinct Colors
+    pieData.forEach((entry, index) => {
+      entry.fill = DISTINCT_COLORS[index % DISTINCT_COLORS.length];
+    });
 
     return (
-       <div className="w-full h-full p-2">
-         <h3 className="text-white font-bold mb-2 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm">
-            {config.title || dataKey}
+       <div className="w-full h-full p-2 flex flex-col">
+         <h3 className="text-white font-bold mb-1 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm">
+            {config.title || (isFrequency ? `${xAxis} Distribution` : dataKey)}
          </h3>
-         <div className="w-full h-[calc(100%-2rem)]">
+         <div className="flex-1 w-full min-h-0">
            <ResponsiveContainer width="100%" height="100%">
              <PieChart>
                <Pie
                  data={pieData}
                  cx="50%"
                  cy="50%"
-                 innerRadius={60}
-                 outerRadius={80}
-                 paddingAngle={5}
+                 innerRadius="55%"
+                 outerRadius="80%"
+                 paddingAngle={4}
                  dataKey="value"
-                 label={renderCustomizedLabel}
+                 stroke="rgba(0,0,0,0)" // Transparent borders for cleaner look
                >
                  {pieData.map((entry, index) => (
-                   <Cell key={`cell-${index}`} fill={activePalette[index % activePalette.length]} stroke="rgba(0,0,0,0.2)" />
+                   <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.fill} 
+                    stroke="#0f172a" // Dark stroke to match background (gap effect)
+                    strokeWidth={2}
+                   />
                  ))}
                </Pie>
-               <Tooltip 
-                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
-                 itemStyle={{ color: '#94a3b8' }}
-                 formatter={(value) => value.toLocaleString()}
+               
+               {/* Premium Tooltip */}
+               <Tooltip content={<CustomDonutTooltip />} />
+               
+               {/* Legend (Optional: Adds clarity) */}
+               <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  iconType="circle"
+                  formatter={(value) => <span className="text-slate-400 text-xs font-medium ml-1">{value}</span>}
                />
              </PieChart>
            </ResponsiveContainer>
