@@ -1110,7 +1110,7 @@ const ModelDetail = () => {
 
         {/* STANDARD NAV */}
         {!isPresentationMode && (
-          <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-10 transition-all duration-500">
+          <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-[70] transition-all duration-500">
             <div className="flex items-center gap-4">
               {/* Breadcrumbs */}
               <div className="flex items-center gap-2 text-sm text-slate-400">
