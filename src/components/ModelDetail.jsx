@@ -65,7 +65,8 @@ const formatCellValue = (value, header, isCompactMode) => {
   if (value === null || value === undefined) return "";
 
   // 1. DETECT DATE (Excel Serial Numbers like 46023)
-  const isDateHeader = /date|time|period|cat/i.test(header);
+  // Added 'year' and 'mon' to catch headers like "YearMon", "Month", "Year", etc.
+  const isDateHeader = /date|time|period|cat|year|mon/i.test(header);
   if (
     typeof value === "number" &&
     value > 35000 &&
