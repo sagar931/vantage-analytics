@@ -220,8 +220,6 @@ const QUICK_PALETTES = {
   }
 };
 
-
-
 const EXTENDED_THEMES = [
   /* ================================
      DISTINCT & CATEGORICAL (DONUT)
@@ -365,6 +363,30 @@ const EXTENDED_THEMES = [
   }
 ];
 
+// --- CHART TYPES CONFIGURATION ---
+const CHART_TYPES = [
+  { 
+    category: "Comparison & Trend",
+    items: [
+      { id: 'bar', label: 'Bar Chart', icon: BarChart2, desc: 'Compare categories' },
+      { id: 'line', label: 'Line Chart', icon: TrendingUp, desc: 'Track changes over time' },
+      { id: 'area', label: 'Area Chart', icon: TrendingUp, desc: 'Volume trends', iconClass: 'fill-current opacity-50' },
+    ]
+  },
+  { 
+    category: "Composition & Data",
+    items: [
+      { id: 'donut', label: 'Donut Chart', icon: PieChart, desc: 'Part-to-whole ratio' },
+      { id: 'table', label: 'Data Grid', icon: Table, desc: 'Raw row details' },
+    ]
+  },
+  { 
+    category: "Presentation",
+    items: [
+      { id: 'text', label: 'Text Widget', icon: Type, desc: 'Headers & Notes' },
+    ]
+  }
+];
 
 const CURRENCY_OPTIONS = [
   { id: 'none', label: 'Number (1,000)' },
@@ -534,52 +556,93 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
         {/* Body */}
         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
           
-          {/* Row 1: Title & Type */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Title</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className={`w-full bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-10 py-2 text-white outline-none focus:border-blue-500 transition-all ${!showTitle ? 'opacity-50' : ''}`}
-                  placeholder="e.g. Analysis Header"
-                />
-                <button
-                  onClick={() => setShowTitle(!showTitle)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-                  title={showTitle ? "Hide Title in Widget" : "Show Title in Widget"}
-                >
-                  {showTitle ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
-              </div>
+          {/* Row 1: Title (Full Width) */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Widget Title</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={`w-full bg-slate-800 border border-slate-700 rounded-xl pl-4 pr-10 py-3 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all ${!showTitle ? 'opacity-50 text-slate-500' : ''}`}
+                placeholder="e.g. Q3 Sales Analysis"
+              />
+              <button
+                onClick={() => setShowTitle(!showTitle)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors p-1"
+                title={showTitle ? "Hide Title in Widget" : "Show Title in Widget"}
+              >
+                {showTitle ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
             </div>
+          </div>
+
+          {/* Row 2: Chart Type Gallery (Premium Upgrade) */}
+          <div className="space-y-4">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">Visualization Type</label>
             
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Type</label>
-              <div className="flex gap-2">
-                  {['bar', 'line', 'area', 'donut', 'table', 'text'].map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setType(t)}
-                      className={`flex-1 py-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${
-                        type === t 
-                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20' 
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                      }`}
-                    >
-                      {t === 'bar' && <BarChart2 className="w-5 h-5" />}
-                      {t === 'line' && <TrendingUp className="w-5 h-5" />}
-                      {t === 'area' && <TrendingUp className="w-5 h-5 fill-current opacity-50" />}
-                      {t === 'donut' && <PieChart className="w-5 h-5" />}
-                      {t === 'table' && <Table className="w-5 h-5" />} 
-                      {t === 'text' && <Type className="w-5 h-5" />}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {CHART_TYPES.map((cat) => (
+                <div key={cat.category} className="space-y-2 flex flex-col">
+                  {/* Category Header */}
+                  <div className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] pl-1 mb-1">
+                    {cat.category}
+                  </div>
+                  
+                  {/* Cards Container */}
+                  <div className="flex flex-col gap-2 h-full">
+                    {cat.items.map((item) => {
+                      const Icon = item.icon;
+                      const isSelected = type === item.id;
                       
-                      <span className="text-[10px] font-medium uppercase tracking-wider">{t}</span>
-                    </button>
-                  ))}
-              </div>
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setType(item.id)}
+                          className={`
+                            relative flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 group
+                            hover:-translate-y-0.5 active:scale-[0.98]
+                            ${isSelected 
+                              ? 'bg-blue-900/20 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+                              : 'bg-slate-900/40 border-slate-800 hover:border-slate-600 hover:bg-slate-800/60'
+                            }
+                          `}
+                        >
+                          {/* 1. Icon Container */}
+                          <div className={`
+                            flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-300
+                            ${isSelected 
+                              ? 'bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-lg' 
+                              : 'bg-slate-800 text-slate-500 group-hover:text-slate-200 group-hover:bg-slate-700'
+                            }
+                          `}>
+                            <Icon className={`w-5 h-5 ${item.iconClass || ''}`} />
+                          </div>
+                          
+                          {/* 2. Text Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-xs font-bold transition-colors ${isSelected ? 'text-blue-100' : 'text-slate-300 group-hover:text-white'}`}>
+                              {item.label}
+                            </div>
+                            <div className={`text-[10px] truncate transition-colors ${isSelected ? 'text-blue-300/70' : 'text-slate-500 group-hover:text-slate-400'}`}>
+                              {item.desc}
+                            </div>
+                          </div>
+
+                          {/* 3. Selection Indicator (Glowing Dot) */}
+                          <div className={`
+                            w-3 h-3 rounded-full border-2 transition-all duration-300
+                            ${isSelected 
+                              ? 'border-blue-500 bg-blue-500 shadow-[0_0_8px_#3b82f6]' 
+                              : 'border-slate-700 bg-transparent group-hover:border-slate-500'
+                            }
+                          `} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
