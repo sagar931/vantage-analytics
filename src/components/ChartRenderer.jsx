@@ -87,7 +87,7 @@ const renderSmartLabel = (props) => {
 
 
 // --- HELPER: PREMIUM TOOLTIP ---
-const CustomTooltip = ({ active, payload }) => {
+const CustomTooltip = ({ active, payload, formatter }) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
@@ -99,7 +99,8 @@ const CustomTooltip = ({ active, payload }) => {
         <div className="flex justify-between items-end">
           <span className="text-xs text-slate-400">Value:</span>
           <span className="text-lg font-mono font-bold text-blue-400">
-            {data.value.toLocaleString()}
+            {/* FIX: Use the passed formatter function */}
+            {formatter ? formatter(data.value) : data.value.toLocaleString()}
           </span>
         </div>
       </div>
@@ -286,7 +287,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                    <Cell key={`cell-${index}`} fill={entry.fill} />
                  ))}
                </Pie>
-               <Tooltip content={<CustomTooltip />} />
+               <Tooltip content={<CustomTooltip formatter={formatValue} />} />
              </PieChart>
            </ResponsiveContainer>
          </div>
