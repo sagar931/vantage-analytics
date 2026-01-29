@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "users": [
+    {
+      "id": "emp7jzi2sx2u",
+      "barclaysId": "sagar.mandal@barclays.com",
+      "passwordHash": "$2a$10$EIWswNfkdXl2vuZ3cl/riOIYV9SKt23HZF6qeO2juZ3C3DT.IPdwO",
+      "name": "Sagar Mandal",
+      "department": "Fraud Analytics",
+      "status": "active",
+      "failedAttempts": 0,
+      "lockedUntil": null,
+      "lastLogin": null,
+      "createdAt": "2026-01-29T05:12:45.220Z"
+    }
+  ],
+  "securityPolicy": {
+    "sessionTimeout": 28800,
+    "maxFailedAttempts": 3,
+    "lockoutDuration": 10800
+  }
+}
