@@ -28,6 +28,18 @@ Follow these steps to get the application running locally:
     ```bash
     npm run dev
     ```
+    **Or**:
+5.  **Start the Both Servers at same time**:
+    ```bash 
+    npm run dev:full
+    ```
+
+    *It starts the Frontend (npm run dev) in Blue text.
+
+    * It enters the backend/ folder and starts the Server (npm start) in Magenta text.
+
+    * Both logs will stream into the same terminal window.
+
     * Open your browser and navigate to the URL shown (usually `http://localhost:5173`).
 
 ## 3. Tech Stack & Dependencies
