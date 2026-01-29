@@ -312,9 +312,14 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                 color: '#f8fafc',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
               }}
+              itemStyle={{ color: '#e2e8f0' }} // <--- FIX: Forces value text to be light
               labelFormatter={formatExcelDate}
             />
-            <Legend wrapperStyle={{ paddingTop: '10px' }} iconType="circle" />
+            <Legend 
+              wrapperStyle={{ paddingTop: '10px' }} 
+              iconType="circle" 
+              formatter={(value) => <span className="text-slate-300 font-medium text-xs">{value}</span>}
+            />
             
             {threshold && (
                <ReferenceLine y={Number(threshold)} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Threshold', fill: '#ef4444', fontSize: 10 }} />
@@ -330,9 +335,19 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               
               if (type === 'bar' && threshold && validDataKeys.length === 1) {
                 return (
-                  <Bar key={key} dataKey={key} barSize={40} radius={[4, 4, 0, 0]}>
+                  <Bar 
+                    key={key} 
+                    dataKey={key} 
+                    name={key} // Explicit name
+                    fill={seriesColor} // Fallback color for the Legend Icon
+                    barSize={40} 
+                    radius={[4, 4, 0, 0]}
+                  >
                     {visibleData.map((entry, i) => (
-                      <Cell key={`cell-${i}`} fill={Number(entry[key]) > threshold ? '#ef4444' : seriesColor} />
+                      <Cell 
+                        key={`cell-${i}`} 
+                        fill={Number(entry[key]) > threshold ? '#ef4444' : seriesColor} 
+                      />
                     ))}
                   </Bar>
                 )
