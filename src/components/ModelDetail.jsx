@@ -820,7 +820,8 @@ const ModelDetail = () => {
       
       {/* 1. CINEMATIC SIDEBAR (Parallax Slide Animation) */}
       <div 
-        className="relative flex-shrink-0 z-40 h-full transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)]"
+        // FIX: Added 'overflow-hidden' to mask the fixed-width inner content when collapsed
+        className="relative flex-shrink-0 z-40 h-full transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden"
         style={{ width: isSidebarCollapsed ? 0 : 320 }}
       >
         <div className="absolute inset-0 bg-[#0b1121] border-r border-slate-800 flex flex-col overflow-hidden w-[320px]">
