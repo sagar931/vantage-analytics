@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { 
   ResponsiveContainer, ComposedChart, PieChart, Pie, Cell, 
-  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceArea 
+  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceArea, Sector 
 } from 'recharts';
 
-  // --- HELPER: DISTINCT COLORS FOR DONUTS ---
+// --- HELPER: DISTINCT COLORS FOR DONUTS ---
 const DISTINCT_COLORS = [
   '#3b82f6', // Blue
   '#10b981', // Emerald
@@ -15,6 +15,7 @@ const DISTINCT_COLORS = [
   '#06b6d4', // Cyan
   '#84cc16', // Lime
 ];
+
 // --- HELPER 1: PREMIUM SHADE GENERATOR ---
 const getColorPalette = (baseColor, count) => {
   const THEMES = {
@@ -24,45 +25,67 @@ const getColorPalette = (baseColor, count) => {
     '#f59e0b': ['#f59e0b', '#fbbf24', '#d97706', '#fcd34d', '#b45309'], 
     '#8b5cf6': ['#8b5cf6', '#a78bfa', '#7c3aed', '#c4b5fd', '#6d28d9'], 
   };
-
-
-    
+  
   const theme = THEMES[baseColor] || THEMES['#3b82f6'];
   if (count <= 1) return [baseColor];
-  
-  // Generate palette by cycling through the theme shades
   return Array.from({ length: count }, (_, i) => theme[i % theme.length]);
 };
 
 // --- HELPER 2: EXCEL DATE FORMATTER ---
 const formatExcelDate = (serial) => {
-  // If it's already a string like "Jan-25", return it
   if (typeof serial === 'string') return serial;
-  // If it's a number (Excel Serial Date)
   if (typeof serial === 'number') {
      const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-     // Return short month format (e.g., "Jan 25")
      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
   }
   return serial;
 };
 
-// --- HELPER 3: DONUT LABELS ---
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+// --- HELPER 3: PREMIUM CALLOUT LABELS (The "Spider Legs") ---
+const renderSmartLabel = (props) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, name, fill } = props;
   const RADIAN = Math.PI / 180;
+  
+  // 1. Calculate positions
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  
+  // Points for the line
+  const sin = Math.sin(-midAngle * RADIAN);
+  const cos = Math.cos(-midAngle * RADIAN);
+  const sx = cx + (outerRadius + 5) * cos;
+  const sy = cy + (outerRadius + 5) * sin;
+  const mx = cx + (outerRadius + 25) * cos;
+  const my = cy + (outerRadius + 25) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 15; // Horizontal extension
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+
+  // Only show label if slice is big enough (> 2%) to prevent clutter
+  if (percent < 0.02) return null;
 
   return (
-    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
+    <g>
+      {/* Connector Line */}
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={1.5} opacity={0.6} />
+      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+      
+      {/* Category Name */}
+      <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} textAnchor={textAnchor} fill="#94a3b8" fontSize={10} fontWeight={600} dy={-4}>
+        {name}
+      </text>
+      
+      {/* Value & Percent */}
+      <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} textAnchor={textAnchor} fill="#e2e8f0" fontSize={11} fontWeight={700} dy={10}>
+        {`${(percent * 100).toFixed(0)}% (${value.toLocaleString()})`}
+      </text>
+    </g>
   );
 };
 
-// --- HELPER: PREMIUM CUSTOM TOOLTIP ---
-const CustomDonutTooltip = ({ active, payload }) => {
+// --- HELPER: PREMIUM TOOLTIP ---
+const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
@@ -85,7 +108,6 @@ const CustomDonutTooltip = ({ active, payload }) => {
 
 // --- MAIN COMPONENT ---
 const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
-  // Internal state for dragging visual selection
   const [refAreaLeft, setRefAreaLeft] = useState('');
   const [refAreaRight, setRefAreaRight] = useState('');
 
@@ -97,7 +119,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  // Destructure config (Removed manual xAxisAngle)
   const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0 } = config;
 
   const validDataKeys = (dataKeys || []).filter(key => 
@@ -106,7 +127,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
 
   const activePalette = getColorPalette(colors[0], validDataKeys.length);
 
-  // --- ZOOM LOGIC: DATA SLICING ---
+  // Zoom / Filter Data Logic
   const getVisibleData = () => {
     if (!zoomDomain || !zoomDomain.left || !zoomDomain.right) return data;
     const leftIndex = data.findIndex(item => item[xAxis] === zoomDomain.left);
@@ -119,15 +140,13 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
 
   const visibleData = getVisibleData(); 
 
-  // --- SMART LOGIC: AUTO-ROTATE LABELS ---
-  // If visible data points > 6, rotate labels to prevent overlap
+  // Smart X-Axis Rotation
   const isDenseData = visibleData.length > 6;
   const autoAxisAngle = isDenseData ? -45 : 0;
   const autoAxisAnchor = isDenseData ? "end" : "middle";
-  const autoAxisHeight = isDenseData ? 60 : 30; // Extra height for angled text
+  const autoAxisHeight = isDenseData ? 60 : 30;
   const autoDy = isDenseData ? 5 : 10;
 
-  // --- EVENT HANDLERS ---
   const handleZoom = () => {
     if (refAreaLeft === refAreaRight || refAreaRight === '') {
       setRefAreaLeft('');
@@ -136,7 +155,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     }
     let left = refAreaLeft;
     let right = refAreaRight;
-    // Ensure correct order based on data index
     const leftIdx = data.findIndex(i => i[xAxis] === left);
     const rightIdx = data.findIndex(i => i[xAxis] === right);
     if (leftIdx > rightIdx) [left, right] = [right, left];
@@ -157,9 +175,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
             <table className="w-full text-left text-sm border-collapse">
                <thead className="sticky top-0 bg-slate-900 z-10 shadow-lg shadow-slate-950/50">
                   <tr>
-                     <th className="px-4 py-3 font-semibold text-slate-400 border-b border-slate-700 whitespace-nowrap">
-                        {xAxis}
-                     </th>
+                     <th className="px-4 py-3 font-semibold text-slate-400 border-b border-slate-700 whitespace-nowrap">{xAxis}</th>
                      {validDataKeys.map((key, i) => (
                         <th key={key} className="px-4 py-3 font-semibold text-slate-300 border-b border-slate-700 whitespace-nowrap text-right">
                            <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: activePalette[i % activePalette.length] }}></span>
@@ -171,9 +187,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                <tbody>
                   {visibleData.map((row, idx) => (
                      <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/50 transition-colors">
-                        <td className="px-4 py-2 text-slate-300 font-mono text-xs border-r border-slate-800/50">
-                           {formatExcelDate(row[xAxis])}
-                        </td>
+                        <td className="px-4 py-2 text-slate-300 font-mono text-xs border-r border-slate-800/50">{formatExcelDate(row[xAxis])}</td>
                         {validDataKeys.map((key) => (
                            <td key={key} className="px-4 py-2 text-slate-200 text-right font-mono text-xs">
                               {Number(row[key])?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '-'}
@@ -188,72 +202,61 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  // --- 2. PIE / DONUT ---
+  // --- 2. PIE / DONUT (PREMIUM UPGRADE) ---
   if (type === 'donut') {
-    // A. Handle "Frequency" Logic
-    // If no key is selected or special key is present, we default to Frequency mode
     const isFrequency = dataKeys.includes('Frequency (Count)');
     const dataKey = isFrequency ? 'Frequency (Count)' : validDataKeys[0];
     
     if (!dataKey) return <div className="text-slate-500 flex items-center justify-center h-full">Select a Value</div>;
 
-    // B. Aggregate Data
     const pieData = data.reduce((acc, row) => {
       const name = row[xAxis] || 'Unknown';
-      // If Frequency: Value is 1 (Count row). If Column: Value is row[col]
       const value = isFrequency ? 1 : (Number(row[dataKey]) || 0);
-      
       const existing = acc.find(i => i.name === name);
       if (existing) existing.value += value;
-      else acc.push({ name, value, fill: '' }); // Prepare for fill
+      else acc.push({ name, value, fill: '' }); 
       return acc;
-    }, [])
-    // Sort by value (descending) so biggest slices come first
-    .sort((a, b) => b.value - a.value);
+    }, []).sort((a, b) => b.value - a.value);
 
-    // C. Assign Distinct Colors
+    // Assign distinct colors
     pieData.forEach((entry, index) => {
       entry.fill = DISTINCT_COLORS[index % DISTINCT_COLORS.length];
     });
 
+    const totalValue = pieData.reduce((sum, item) => sum + item.value, 0);
+
     return (
-       <div className="w-full h-full p-2 flex flex-col">
-         <h3 className="text-white font-bold mb-1 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm">
+       <div className="w-full h-full p-2 flex flex-col relative">
+         <h3 className="text-white font-bold mb-1 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm z-10">
             {config.title || (isFrequency ? `${xAxis} Distribution` : dataKey)}
          </h3>
-         <div className="flex-1 w-full min-h-0">
+         <div className="flex-1 w-full min-h-0 relative">
+           {/* Center Text (Total) */}
+           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</span>
+              <span className="text-3xl font-black text-white">{totalValue.toLocaleString()}</span>
+           </div>
+
            <ResponsiveContainer width="100%" height="100%">
              <PieChart>
                <Pie
                  data={pieData}
                  cx="50%"
                  cy="50%"
-                 innerRadius="55%"
+                 innerRadius="60%" // Thicker ring (60-80%)
                  outerRadius="80%"
-                 paddingAngle={4}
+                 paddingAngle={5}
+                 cornerRadius={6} // Rounded corners for premium feel
                  dataKey="value"
-                 stroke="rgba(0,0,0,0)" // Transparent borders for cleaner look
+                 stroke="none"
+                 label={renderSmartLabel} // <--- THE CALLOUT LINES
+                 labelLine={false} // We draw our own lines in renderSmartLabel
                >
                  {pieData.map((entry, index) => (
-                   <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.fill} 
-                    stroke="#0f172a" // Dark stroke to match background (gap effect)
-                    strokeWidth={2}
-                   />
+                   <Cell key={`cell-${index}`} fill={entry.fill} />
                  ))}
                </Pie>
-               
-               {/* Premium Tooltip */}
-               <Tooltip content={<CustomDonutTooltip />} />
-               
-               {/* Legend (Optional: Adds clarity) */}
-               <Legend 
-                  verticalAlign="bottom" 
-                  height={36} 
-                  iconType="circle"
-                  formatter={(value) => <span className="text-slate-400 text-xs font-medium ml-1">{value}</span>}
-               />
+               <Tooltip content={<CustomTooltip />} />
              </PieChart>
            </ResponsiveContainer>
          </div>
@@ -261,7 +264,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  // --- 3. STANDARD CHARTS (Bar, Line, Area) ---
+  // --- 3. BAR / LINE / AREA ---
   return (
     <div className="w-full h-full flex flex-col p-4">
       <div className="flex justify-between items-center mb-2">
@@ -280,7 +283,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
              onMouseUp={handleZoom}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} vertical={false} />
-            
             <XAxis 
               dataKey={xAxis} 
               tickFormatter={formatExcelDate}
@@ -288,22 +290,12 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               fontSize={11} 
               tickLine={false}
               axisLine={{ stroke: '#475569' }}
-              
-              // FIX: Connect the angle from config
               angle={xAxisAngle} 
-              
-              // Dynamic Alignment: If rotated, align text to end so it looks neat
               textAnchor={xAxisAngle !== 0 ? "end" : "middle"} 
-              
-              // Dynamic Height: Give more space if rotated (60px vs 30px)
               height={xAxisAngle !== 0 ? 60 : 30} 
-              
-              // Dynamic Vertical Offset: Push down slightly if rotated
               dy={xAxisAngle !== 0 ? 10 : 5} 
-              
-              interval={0} // Force show all labels
+              interval={0} 
             />
-            
             <YAxis 
               stroke="#94a3b8" 
               fontSize={11} 
@@ -311,7 +303,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               axisLine={false}
               tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
             />
-            
             <Tooltip 
               cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
               contentStyle={{ 
@@ -321,18 +312,14 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                 color: '#f8fafc',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
               }}
-              labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem', fontSize: '12px' }}
-              
-              // FIX: Apply the same Excel Date Formatting to the Tooltip Header
               labelFormatter={formatExcelDate}
             />
-            
             <Legend wrapperStyle={{ paddingTop: '10px' }} iconType="circle" />
-
+            
             {threshold && (
                <ReferenceLine y={Number(threshold)} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Threshold', fill: '#ef4444', fontSize: 10 }} />
             )}
-
+            
             {refAreaLeft && refAreaRight && (
               <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="#3b82f6" fillOpacity={0.3} />
             )}
@@ -341,15 +328,11 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               const seriesColor = activePalette[index % activePalette.length];
               const DataComponent = type === 'bar' ? Bar : (type === 'area' ? Area : Line);
               
-              // Special case for single-series Bar chart with threshold
               if (type === 'bar' && threshold && validDataKeys.length === 1) {
                 return (
                   <Bar key={key} dataKey={key} barSize={40} radius={[4, 4, 0, 0]}>
                     {visibleData.map((entry, i) => (
-                      <Cell 
-                        key={`cell-${i}`} 
-                        fill={Number(entry[key]) > threshold ? '#ef4444' : seriesColor} 
-                      />
+                      <Cell key={`cell-${i}`} fill={Number(entry[key]) > threshold ? '#ef4444' : seriesColor} />
                     ))}
                   </Bar>
                 )
@@ -363,7 +346,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                   fill={seriesColor}    
                   stroke={seriesColor}  
                   fillOpacity={type === 'area' ? 0.2 : 0.8}
-                  barSize={validDataKeys.length > 1 ? 12 : 40} // Thinner bars if multiple series
+                  barSize={validDataKeys.length > 1 ? 12 : 40}
                   strokeWidth={2}
                   radius={[4, 4, 0, 0]}
                   activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} 
