@@ -1,63 +1,121 @@
 import React from 'react';
 import { useFileSystem } from '../context/FileSystemContext';
-import { FileJson, PlusCircle, FolderOpen, ShieldCheck } from 'lucide-react';
+import { Plus, FolderOpen, ShieldCheck, Database, LayoutGrid, FileJson } from 'lucide-react';
+import clsx from 'clsx';
 
 const VlmSetup = () => {
   const { folderName, createVlmFile, selectVlmFile } = useFileSystem();
 
   return (
-    <div className="h-screen w-full bg-slate-950 flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-10 shadow-2xl relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden font-sans selection:bg-blue-500/30">
+      
+      {/* 1. PREMIUM GRID BACKGROUND */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Base Grid */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{ 
+            backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`, 
+            backgroundSize: '50px 50px' 
+          }}
+        />
+        {/* Radial Fade for Depth */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_100%)]"></div>
         
-        {/* Background Decoration */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        {/* Subtle Glows */}
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[120px]" />
+      </div>
 
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20 mb-4">
-            <ShieldCheck className="w-3 h-3" /> Repository Connected: {folderName}
+      {/* 2. MAIN CARD */}
+      <div className="max-w-4xl w-full relative z-10">
+        
+        {/* Header Section */}
+        <div className="text-center mb-16 space-y-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/50 border border-slate-800 text-slate-400 text-xs font-medium backdrop-blur-md shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Repository Connected: <span className="text-white font-mono ml-1">{folderName}</span></span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-3">Logic Manifest Configuration</h1>
-          <p className="text-slate-400 text-lg">
-            Where should we store your logics, formatting, rules, etc?
-          </p>
+          
+          <div>
+            <h1 className="text-5xl font-bold tracking-tight text-white mb-4">
+              <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-slate-400">
+                Configure Logic Manifest
+              </span>
+            </h1>
+            <p className="text-lg text-slate-400 max-w-lg mx-auto font-light leading-relaxed">
+              The manifest acts as the neural core of Vantage, storing your team's rules, formatting logic, and dashboard configurations.
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Options Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4">
           
-          {/* Option A: Create New */}
+          {/* OPTION A: CREATE NEW */}
           <button 
             onClick={createVlmFile}
-            className="group flex flex-col items-center p-8 bg-slate-800/50 hover:bg-blue-600/10 border border-slate-700 hover:border-blue-500/50 rounded-xl transition-all duration-300"
+            className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-blue-500/50 transition-all duration-500 hover:bg-slate-900/60 hover:shadow-[0_0_40px_-10px_rgba(59,130,246,0.15)] text-left"
           >
-            <div className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-blue-900/50 group-hover:scale-110 transition-transform">
-              <PlusCircle className="w-7 h-7 text-white" />
+            <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+               <Plus className="w-6 h-6 text-blue-500" />
             </div>
-            <h3 className="text-white font-bold text-lg mb-2">Create New .vlm</h3>
-            <p className="text-slate-500 text-sm text-center">
-              Start fresh. We will create a <code>vantage_logic.vlm</code> file that you can share with your team.
+
+            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-900/20 group-hover:scale-110 transition-transform duration-500">
+              <LayoutGrid className="w-7 h-7 text-white" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-200 transition-colors">Initialize New VLM</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              Start fresh. We will generate a pristine <code>vantage_logic.vlm</code> file structure optimized for your current dataset.
             </p>
+
+            <div className="mt-auto flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-500 group-hover:text-blue-400">
+              <span>Create Manifest</span>
+              <div className="w-4 h-px bg-blue-500/50 group-hover:w-8 transition-all"></div>
+            </div>
           </button>
 
-          {/* Option B: Load Existing */}
+          {/* OPTION B: LOAD EXISTING */}
           <button 
             onClick={selectVlmFile}
-            className="group flex flex-col items-center p-8 bg-slate-800/50 hover:bg-purple-600/10 border border-slate-700 hover:border-purple-500/50 rounded-xl transition-all duration-300"
+            className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-emerald-500/50 transition-all duration-500 hover:bg-slate-900/60 hover:shadow-[0_0_40px_-10px_rgba(16,185,129,0.15)] text-left"
           >
-            <div className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-purple-900/50 group-hover:scale-110 transition-transform">
-              <FolderOpen className="w-7 h-7 text-white" />
+            <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+               <FolderOpen className="w-6 h-6 text-emerald-500" />
             </div>
-            <h3 className="text-white font-bold text-lg mb-2">Load Existing .vlm</h3>
-            <p className="text-slate-500 text-sm text-center">
-              Have a configuration file already? Load it to restore your team's formatting rules.
+
+            <div className="w-14 h-14 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-900/20 group-hover:scale-110 transition-transform duration-500">
+              <Database className="w-7 h-7 text-white" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-200 transition-colors">Load Existing VLM</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              Restore your environment. Load a previously saved <code>.vlm</code> configuration to instantly apply your team's rules.
             </p>
+
+            <div className="mt-auto flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-500 group-hover:text-emerald-400">
+              <span>Select File</span>
+              <div className="w-4 h-px bg-emerald-500/50 group-hover:w-8 transition-all"></div>
+            </div>
           </button>
 
         </div>
         
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-600">
-            <strong className="text-slate-500">What is a .vlm file?</strong> It acts as the "Brain" of this project, storing all your color-coding rules, settings, and views. It syncs automatically.
-          </p>
+        <div className="mt-16 text-center border-t border-slate-800/50 pt-8">
+          <div className="inline-flex items-center gap-6 text-xs text-slate-500 font-medium">
+            <span className="flex items-center gap-2">
+                <FileJson className="w-4 h-4 text-slate-600" />
+                Standardized
+            </span>
+            <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+            <span>Instant State Binding</span>
+            <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+            <span>AES-256 Encryption</span>
+          </div>
         </div>
 
       </div>
