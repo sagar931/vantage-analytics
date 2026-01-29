@@ -51,7 +51,7 @@ import {
   Palette,
   RotateCcw,
   LogOut,
-  Sun, Moon, ChevronDown, User
+  Sun, Moon, ChevronDown, User,Menu
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -483,6 +483,20 @@ const ModelDetail = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // --- NEW: SYNC BROWSER FULLSCREEN WITH REACT STATE ---
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      if (!document.fullscreenElement) {
+        // User pressed "Esc" or exited manually -> Exit Presentation Mode
+        setIsPresentationMode(false);
+        setIsSidebarCollapsed(false);
+        setViewMode("compact");
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, []);
+
  // Auto-expand the most recent year on load
   useEffect(() => {
     const years = Object.keys(filesByYear).sort().reverse();
@@ -802,49 +816,63 @@ const ModelDetail = () => {
   const dynamicHeight = Math.max(600, contentHeight + dragBuffer);
 
   return (
-    <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative">
-      {/* 1. LEFT SIDEBAR (PREMIUM & NESTED) */}
+    <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative selection:bg-blue-500/30">
+      
+      {/* 1. CINEMATIC SIDEBAR (Parallax Slide Animation) */}
       <div 
-        className={clsx(
-          "bg-[#0b1121] border-r border-slate-800 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] relative",
-          isSidebarCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-80 opacity-100" // Increased width slightly
-        )}
+        className="relative flex-shrink-0 z-40 h-full transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)]"
+        style={{ width: isSidebarCollapsed ? 0 : 320 }}
       >
-        {/* Brand Header (Upscaled) */}
-        <div className="h-20 flex items-center px-6 border-b border-slate-800/50 bg-[#0b1121] whitespace-nowrap shadow-sm shrink-0">
-          <div className="flex items-center gap-3 font-bold tracking-tight text-2xl text-[#00AEEF]">
-            <img
-              src="/barclays_logo.png"
-              alt="Barclays"
-              className="h-10 w-auto object-contain"
-            />
-            <span>BARCLAYS</span>
+        <div className="absolute inset-0 bg-[#0b1121] border-r border-slate-800 flex flex-col overflow-hidden w-[320px]">
+          
+          {/* Brand Header */}
+          <div className="h-20 flex items-center px-6 border-b border-slate-800/50 bg-[#0b1121] whitespace-nowrap shrink-0 relative">
+            <div className={clsx("flex items-center gap-3 transition-opacity duration-300", isSidebarCollapsed ? "opacity-0" : "opacity-100")}>
+               <img src="/barclays_logo.png" alt="Barclays" className="h-9 w-auto object-contain brightness-110" />
+               <div className="flex flex-col">
+                 <span className="font-bold tracking-tight text-xl text-white leading-none">BARCLAYS</span>
+                 <span className="text-[9px] font-bold text-blue-500 tracking-[0.2em] uppercase mt-1">Fraud Analytics</span>
+               </div>
+            </div>
+            
+            {/* Collapse Icon (Hidden inside header) */}
+            <button 
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="absolute right-4 p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
           </div>
-        </div>
 
-        {/* Navigation & Info */}
-        <div className="p-5 space-y-4 shrink-0">
-           <button onClick={closeModel} className="group w-full flex items-center gap-3 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-slate-700/50 hover:border-slate-600 hover:shadow-lg">
-             <div className="bg-slate-700 p-1.5 rounded group-hover:bg-blue-600 transition-colors">
-               <ArrowLeft className="w-4 h-4 text-white" />
-             </div>
-             Return to Grid
-          </button>
+          {/* Navigation & Info */}
+          <div className={clsx("p-5 space-y-4 shrink-0 transition-all duration-500 delay-75", isSidebarCollapsed ? "opacity-0 -translate-x-4" : "opacity-100 translate-x-0")}>
+             <button onClick={closeModel} className="group w-full flex items-center gap-3 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-slate-700/50 hover:border-slate-600 hover:shadow-lg shadow-black/20">
+               <div className="bg-slate-700 p-1.5 rounded-lg group-hover:bg-blue-600 transition-colors shadow-inner">
+                 <ArrowLeft className="w-4 h-4 text-white" />
+               </div>
+               Return to Grid
+            </button>
 
-          <div className="px-1">
-            <h2 className="text-xl font-bold text-white leading-tight tracking-tight">{selectedModel.name.replace(/_/g, ' ')}</h2>
-            <div className="flex items-center gap-2 mt-2">
-               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-               <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">ID: {selectedModel.id}</span>
+            <div className="px-1">
+              <h2 className="text-xl font-bold text-white leading-tight tracking-tight">{selectedModel.name.replace(/_/g, ' ')}</h2>
+              <div className="flex items-center gap-2 mt-2">
+                 <div className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                 </div>
+                 <span className="text-xs font-mono text-slate-500 uppercase tracking-widest font-semibold">ID: {selectedModel.id}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* File List (Nested Accordion: Year > Qtr > Files) */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 px-2 mt-2">History</div>
-          
-          {Object.keys(filesByYear).sort().reverse().map(year => {
+          {/* File List (Scrollable Area) */}
+          <div className={clsx("flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar transition-all duration-500 delay-100", isSidebarCollapsed ? "opacity-0" : "opacity-100")}>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-2 mt-2 flex items-center gap-2">
+               <History className="w-3 h-3" /> Historical Data
+            </div>
+            
+            {/* --- EXISTING FILE LIST LOGIC PRESERVED --- */}
+            {Object.keys(filesByYear).sort().reverse().map(year => {
             // 1. Group files by Quarter (Q1-Q4) and Special (Q5/Q6/Agg)
             const groups = { Specials: [], Q4: [], Q3: [], Q2: [], Q1: [] };
             
@@ -948,18 +976,33 @@ const ModelDetail = () => {
               </div>
             );
           })}
-        </div>
-        {/* Sidebar Footer - Sign Out */}
-        <div className="p-4 border-t border-slate-800 bg-[#0b1121]">
-          <button 
-            onClick={logout}
-            className="w-full flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 px-4 py-3 rounded-xl transition-all text-sm font-bold group"
-          >
-             <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-             <span>Sign Out</span>
-          </button>
+          </div>
+
+          {/* Sidebar Footer - Sign Out */}
+          <div className={clsx("p-4 border-t border-slate-800 bg-[#0b1121] transition-all duration-500", isSidebarCollapsed ? "opacity-0" : "opacity-100")}>
+            <button 
+              onClick={logout}
+              className="w-full flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 px-4 py-3 rounded-xl transition-all text-sm font-bold group"
+            >
+               <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+               <span>Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* 2. THE NEW "GHOST" TRIGGER (Refined) */}
+      {/* Default width is only 8px (w-2) to prevent blocking table data. Expands to 24px (w-6) on hover. */}
+      {!isPresentationMode && isSidebarCollapsed && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-2 hover:w-6 z-[100] group flex items-center justify-center cursor-pointer hover:bg-blue-500/10 transition-all duration-300 delay-100" 
+          onClick={() => setIsSidebarCollapsed(false)}
+          title="Click to Expand"
+        >
+           {/* The Glowing Line */}
+           <div className="h-16 w-0.5 rounded-full bg-slate-600/50 group-hover:bg-blue-500 group-hover:h-24 group-hover:w-1 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-all duration-300"></div>
+        </div>
+      )}
 
       {/* COLLAPSE TRIGGER */}
       {!isPresentationMode && (
@@ -1100,7 +1143,11 @@ const ModelDetail = () => {
 
             {/* Right: Exit */}
             <button
-              onClick={togglePresentation}
+              onClick={() => {
+                togglePresentation();
+                // Exit Native Browser Fullscreen
+                if (document.fullscreenElement) document.exitFullscreen().catch(e => console.log(e));
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 rounded-lg border border-slate-700 transition-colors text-sm font-medium"
             >
               <Minimize2 className="w-4 h-4" /> Exit
@@ -1110,8 +1157,20 @@ const ModelDetail = () => {
 
         {/* STANDARD NAV */}
         {!isPresentationMode && (
-          <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-[70] transition-all duration-500">
+          <div className="h-16 bg-[#0b1121] border-b border-slate-800 flex items-center justify-between px-6 z-[70] transition-all duration-500">
             <div className="flex items-center gap-4">
+              
+              {/* NEW: Sidebar Toggle Button (Visible only when collapsed) */}
+              <div className={clsx("transition-all duration-500 ease-out overflow-hidden flex items-center", isSidebarCollapsed ? "w-10 opacity-100 mr-2" : "w-0 opacity-0")}>
+              <button 
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  className="p-2 text-slate-500 hover:text-white hover:bg-blue-900/20 rounded-lg transition-colors"
+                  title="Expand Sidebar"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+              </div>
+
               {/* Breadcrumbs */}
               <div className="flex items-center gap-2 text-sm text-slate-400">
                 <span>Fraud Analytics</span>
@@ -1182,12 +1241,17 @@ const ModelDetail = () => {
               </div>
               <div className="h-8 w-px bg-slate-800 mx-2"></div>
               <button
-                onClick={togglePresentation}
+                onClick={() => {
+                  togglePresentation();
+                  // Trigger Native Browser Fullscreen
+                  document.documentElement.requestFullscreen().catch(e => console.log(e));
+                }}
                 className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
-                title="Presentation Mode"
+                title="Enter Full Screen"
               >
                 <MonitorPlay className="w-5 h-5" />
               </button>
+
               <Bell className="w-5 h-5 text-slate-400 hover:text-white cursor-pointer" />
               {/* --- USER PROFILE DROPDOWN (CLICK ACTIVATED) --- */}
               <div className="relative ml-2" ref={profileRef}>
