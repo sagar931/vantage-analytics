@@ -360,6 +360,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
   const [dataKeys, setDataKeys] = useState([]); 
   const [threshold, setThreshold] = useState(''); 
   const [xAxisAngle, setXAxisAngle] = useState(0);
+  const [showDataLabels, setShowDataLabels] = useState(false);
   
   // Color State
   const [selectedPaletteId, setSelectedPaletteId] = useState('default');
@@ -376,6 +377,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
         setDataKeys(initialConfig.dataKeys || []);
         setThreshold(initialConfig.threshold || '');
         setXAxisAngle(initialConfig.xAxisAngle || 0);
+        setShowDataLabels(initialConfig.showDataLabels || false);
         
         // Restore Palette Logic
         if (initialConfig.colors && initialConfig.colors.length > 1) {
@@ -445,6 +447,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
       xAxisAngle: Number(xAxisAngle),
       threshold: threshold ? parseFloat(threshold) : null,
       colors: finalColors, 
+      showDataLabels,
     };
     
     onSave(newChart);
@@ -577,71 +580,78 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
             </div>
           </div>
 
-          {/* Row 3: Palette & Threshold */}
+          {/* Row 3: Palette, Data Labels & Threshold */}
           <div className="grid grid-cols-2 gap-6 items-end">
-             {/* PALETTE SELECTOR WITH MODAL TRIGGER */}
+             {/* PALETTE SELECTOR */}
              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
                   <Palette className="w-3 h-3" /> Color Theme
                 </label>
-                {/* FIX: Changed to flex-wrap to remove scrollbar, reduced gap */}
+                {/* ... existing palette code ... */}
                 <div className="flex flex-wrap gap-2 items-center"> 
-                  {/* Standard Palettes */}
+                  {/* ... palette buttons ... */}
                   {Object.keys(QUICK_PALETTES).map(key => (
                     <button
                       key={key}
                       onClick={() => { setSelectedPaletteId(key); setCustomColors(null); }}
-                      // FIX: Added flex-shrink-0 to prevent squashing
                       className={`w-8 h-8 flex-shrink-0 rounded-full border-2 transition-all ${
                         selectedPaletteId === key 
                           ? 'border-white scale-110 shadow-lg shadow-white/20' 
                           : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'
                       }`}
-                      style={{ 
-                        background: `linear-gradient(135deg, ${QUICK_PALETTES[key].colors[0]} 0%, ${QUICK_PALETTES[key].colors[1]} 100%)` 
-                      }}
+                      style={{ background: `linear-gradient(135deg, ${QUICK_PALETTES[key].colors[0]} 0%, ${QUICK_PALETTES[key].colors[1]} 100%)` }}
                       title={QUICK_PALETTES[key].name}
                     />
                   ))}
-
-                  {/* Divider - Removed mx-1 to reduce space */}
+                  {/* ... rest of palette code ... */}
                   <div className="w-px h-6 bg-slate-700"></div>
-
-                  {/* ADD BUTTON (Opens Modal) */}
                   <button
                     onClick={() => setIsThemeModalOpen(true)}
-                    // FIX: Added flex-shrink-0 to ensure it stays a perfect circle
                     className={`w-8 h-8 flex-shrink-0 rounded-full border-2 border-dashed border-slate-600 flex items-center justify-center text-slate-400 hover:text-white hover:border-blue-500 hover:bg-slate-800 transition-all ${selectedPaletteId === 'custom' ? 'border-blue-500 text-blue-400 bg-slate-800' : ''}`}
                     title="More Themes..."
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                
-                {/* Active Theme Name Display */}
                 <div className="text-[10px] text-slate-400 font-medium h-4 mt-1">
                   {selectedPaletteId === 'custom' ? 'Custom Selection' : QUICK_PALETTES[selectedPaletteId]?.name}
                 </div>
              </div>
 
-             {/* Threshold Input */}
-             {type !== 'donut' && type !== 'table' && (
-               <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                    <AlertCircle className="w-3 h-3 text-red-400" /> Threshold Alert
-                  </label>
-                  <div className="relative">
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      value={threshold}
-                      onChange={(e) => setThreshold(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50"
-                      placeholder="Breach Limit (e.g. 0.1)"
-                    />
+             {/* SETTINGS GROUP: Data Labels & Threshold */}
+             <div className="space-y-4">
+                {/* 1. DATA LABELS TOGGLE */}
+                {type !== 'table' && (
+                  <div className="flex items-center justify-between bg-slate-800 p-2 rounded-lg border border-slate-700">
+                    <span className="text-xs font-bold text-slate-400 uppercase ml-1">Show Data Values</span>
+                    <button
+                      onClick={() => setShowDataLabels(!showDataLabels)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showDataLabels ? 'bg-blue-600' : 'bg-slate-600'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showDataLabels ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
                   </div>
-               </div>
-             )}
+                )}
+
+                {/* 2. THRESHOLD INPUT */}
+                {type !== 'donut' && type !== 'table' && (
+                   <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                        <AlertCircle className="w-3 h-3 text-red-400" /> Threshold Alert
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={threshold}
+                          onChange={(e) => setThreshold(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50"
+                          placeholder="Limit (e.g. 0.1)"
+                        />
+                      </div>
+                   </div>
+                )}
+             </div>
           </div>
         </div>
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   ResponsiveContainer, ComposedChart, PieChart, Pie, Cell, 
-  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceArea, Sector 
+  Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceArea, Sector,
+  LabelList 
 } from 'recharts';
 
 // --- HELPER: DISTINCT COLORS FOR DONUTS ---
@@ -119,7 +120,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0 } = config;
+  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0, showDataLabels = false } = config;
 
   const validDataKeys = (dataKeys || []).filter(key => 
     data.length > 0 && Object.prototype.hasOwnProperty.call(data[0], key)
@@ -235,7 +236,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
       entry.fill = activeColors[index % activeColors.length];
     });
 
-    
+
     const totalValue = pieData.reduce((sum, item) => sum + item.value, 0);
 
     return (
@@ -346,13 +347,14 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               const seriesColor = activePalette[index % activePalette.length];
               const DataComponent = type === 'bar' ? Bar : (type === 'area' ? Area : Line);
               
+              // Special case for single-series Bar chart with threshold
               if (type === 'bar' && threshold && validDataKeys.length === 1) {
                 return (
                   <Bar 
                     key={key} 
                     dataKey={key} 
-                    name={key} // Explicit name
-                    fill={seriesColor} // Fallback color for the Legend Icon
+                    name={key} 
+                    fill={seriesColor} 
                     barSize={40} 
                     radius={[4, 4, 0, 0]}
                   >
@@ -362,10 +364,21 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                         fill={Number(entry[key]) > threshold ? '#ef4444' : seriesColor} 
                       />
                     ))}
+                    {/* NEW: Data Labels for Threshold Bars */}
+                    {showDataLabels && (
+                      <LabelList 
+                        dataKey={key} 
+                        position="top" 
+                        fill="#94a3b8" 
+                        fontSize={10} 
+                        formatter={(val) => val?.toLocaleString()} 
+                      />
+                    )}
                   </Bar>
                 )
               }
 
+              // Standard Charts (Line, Area, Multi-Bar)
               return (
                 <DataComponent
                   key={key}
@@ -378,7 +391,19 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                   strokeWidth={2}
                   radius={[4, 4, 0, 0]}
                   activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} 
-                />
+                >
+                   {/* NEW: Data Labels for Standard Charts */}
+                   {showDataLabels && (
+                      <LabelList 
+                        dataKey={key} 
+                        position="top" 
+                        offset={10}
+                        fill="#94a3b8" 
+                        fontSize={10} 
+                        formatter={(val) => val?.toLocaleString()} 
+                      />
+                   )}
+                </DataComponent>
               )
             })}
           </ComposedChart>
