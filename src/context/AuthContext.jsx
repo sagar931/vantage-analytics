@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
       
       if (!token) {
         setIsLoading(false);
-        if (isAuthenticated) logout(); // Force clear state if token is gone
+        if (isAuthenticated) logout();
         return;
       }
 
@@ -38,7 +38,6 @@ export const AuthProvider = ({ children }) => {
              setIsAuthenticated(true);
           }
         } else {
-          // Token expired or invalid -> Kick user out
           console.warn("Session expired. Logging out.");
           logout(); 
         }
@@ -49,16 +48,11 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Run immediately on load
     validateSession();
-
-    // Run check every 30 seconds (Active Security)
     const interval = setInterval(validateSession, 30000);
-
     return () => clearInterval(interval);
-  }, [isAuthenticated]); // Re-run if auth state changes
+  }, [isAuthenticated]); 
 
-  // 2. Login Function
   const login = async (email, password) => {
     setAuthError(null);
     try {
@@ -74,7 +68,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Success
       sessionStorage.setItem('vantage_auth_token', data.token);
       setUser(data.user);
       setIsAuthenticated(true);
@@ -85,7 +78,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 3. Logout Function
   const logout = () => {
     sessionStorage.removeItem('vantage_auth_token');
     setUser(null);

@@ -50,7 +50,8 @@ import {
   PieChart,
   Palette,
   RotateCcw,
-  LogOut
+  LogOut,
+  Sun, Moon, ChevronDown, User
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -434,7 +435,7 @@ const ModelDetail = () => {
     removeChart,
   } = useFileSystem();
     
-  const { logout } = useAuth(); // Get logout function
+  const { user, logout, theme, setTheme } = useAuth();
   const canvasRef = useRef(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
   // Data State
@@ -466,6 +467,21 @@ const ModelDetail = () => {
   const [zoomStates, setZoomStates] = useState({}); // Stores zoom range per chart: { index: { left, right } }
   const [expandedYears, setExpandedYears] = useState({});
   const [expandedGroups, setExpandedGroups] = useState({});
+
+  // --- NEW: PROFILE DROPDOWN STATE ---
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
  // Auto-expand the most recent year on load
   useEffect(() => {
@@ -1173,7 +1189,71 @@ const ModelDetail = () => {
                 <MonitorPlay className="w-5 h-5" />
               </button>
               <Bell className="w-5 h-5 text-slate-400 hover:text-white cursor-pointer" />
-              <UserCircle className="w-8 h-8 text-slate-400 hover:text-white cursor-pointer" />
+              {/* --- USER PROFILE DROPDOWN (CLICK ACTIVATED) --- */}
+              <div className="relative ml-2" ref={profileRef}>
+                <button 
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className={clsx(
+                    "flex items-center gap-3 pl-3 pr-1 py-1 rounded-full transition-all border",
+                    isProfileOpen 
+                      ? "bg-slate-800 border-slate-700" 
+                      : "hover:bg-slate-800/50 border-transparent hover:border-slate-700/50"
+                  )}
+                >
+                  <div className="text-right hidden lg:block">
+                    <div className="text-xs font-bold text-slate-700 dark:text-white">{user?.name || 'Admin User'}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{user?.department || 'Analytics'}</div>
+                  </div>
+                  
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg ring-2 ring-white dark:ring-slate-900 relative">
+                    {user?.name ? user.name.charAt(0) : 'A'}
+                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+                  </div>
+                  
+                  <ChevronDown className={clsx("w-3 h-3 text-slate-500 transition-transform duration-200", isProfileOpen ? "rotate-180 text-white" : "")} />
+                </button>
+
+                {/* DROPDOWN MENU (Fixed: Dark Aesthetic) */}
+                {isProfileOpen && (
+                  <div className="absolute top-full right-0 mt-3 w-72 bg-[#0b1121] border border-slate-700 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-200 z-[100] ring-1 ring-white/10">
+                    
+                    {/* User Header */}
+                    <div className="px-4 py-4 mb-2 bg-slate-800/30 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-4">
+                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                            <span className="font-bold text-sm">{user?.name ? user.name.charAt(0) : 'A'}</span>
+                         </div>
+                         <div className="overflow-hidden">
+                            <div className="text-sm font-bold text-white truncate">{user?.name || 'Guest'}</div>
+                            <div className="text-[10px] text-slate-400 truncate uppercase tracking-wider font-medium">{user?.barclaysId || 'No ID'}</div>
+                         </div>
+                      </div>
+                    </div>
+
+                    {/* Account Settings */}
+                    <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-all group">
+                      <div className="p-2 rounded-lg bg-slate-800 group-hover:bg-blue-600/20 text-slate-400 group-hover:text-blue-400 transition-colors">
+                         <UserCircle className="w-4 h-4" />
+                      </div>
+                      <span className="font-medium">Account Settings</span>
+                    </button>
+
+                    <div className="h-px bg-slate-800 my-2 mx-2"></div>
+
+                    {/* Logout */}
+                    <button 
+                      onClick={logout}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-all group"
+                    >
+                      <div className="p-2 rounded-lg bg-slate-800 group-hover:bg-red-500/20 text-red-400 transition-colors">
+                         <LogOut className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold">Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
