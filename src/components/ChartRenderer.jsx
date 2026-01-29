@@ -184,14 +184,16 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
 
 
   // --- 0. TEXT WIDGET ---
-  if (type === 'text') {
+if (type === 'text') {
     const activeColor = colors[0] || '#3b82f6';
     
     return (
-      <div className="w-full h-full flex flex-col p-6 overflow-y-auto custom-scrollbar">
+      // FIX: Reduced padding from p-6 to p-3 to remove excess space
+      <div className="w-full h-full flex flex-col p-3 overflow-y-auto custom-scrollbar">
         {/* Optional Title (Respects showTitle toggle) */}
         {showTitle && config.title && (
-           <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-3 pb-2 border-b border-slate-800">
+           // FIX: Reduced bottom margin (mb-3 -> mb-1) and padding (pb-2 -> pb-1)
+           <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-1 pb-1 border-b border-slate-800">
               {config.title}
            </h3>
         )}

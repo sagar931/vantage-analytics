@@ -233,7 +233,8 @@ const DraggableWidget = ({
       Math.round((pxRect.w + GRID_MARGIN) / (colWidthPixel + GRID_MARGIN)),
     );
     const h = Math.max(
-      3,
+      1,
+      
       Math.round((pxRect.h + GRID_MARGIN) / (ROW_HEIGHT + GRID_MARGIN)),
     );
 
@@ -1936,12 +1937,12 @@ const ModelDetail = () => {
                       // A. Default Layout - All charts same size, just positioned to avoid overlap
                       // User can freely resize/reposition any chart
                       const getDefaultLayout = (index) => {
-                        // All charts: same size (half-width), positioned in 2-column grid
                         return {
-                          x: (index % 2) * 6, // Alternate between left (0) and right (6)
-                          y: Math.floor(index / 2) * 7, // New row every 2 charts, with 1 row gap
-                          w: 6, // All charts default to half-width
-                          h: 6, // All charts default to same height
+                          x: (index % 2) * 6, 
+                          y: Math.floor(index / 2) * 7, 
+                          w: 6, 
+                          // FIX: Text widgets default to smaller height (2), others stay large (6)
+                          h: chartConfig.type === 'text' ? 2 : 6, 
                         };
                       };
 
