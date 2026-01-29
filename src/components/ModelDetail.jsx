@@ -170,6 +170,7 @@ const DraggableWidget = ({
   onLayoutChange,
   isEditing,
   onDelete,
+  onEdit,
   containerWidth,
   onColorChange,
   activeColor,
@@ -384,6 +385,17 @@ const DraggableWidget = ({
               )}
             </div>
 
+            {/* Edit Button */}
+            {onEdit && (
+               <button 
+                 onClick={onEdit}
+                 className="text-slate-500 hover:text-blue-400 p-1 rounded hover:bg-slate-700 transition-colors"
+                 title="Edit Chart Configuration"
+               >
+                 <Edit3 className="w-3 h-3" />
+               </button>
+            )}
+
             {onDelete && (
               <button
                 onClick={onDelete}
@@ -435,7 +447,8 @@ const ModelDetail = () => {
     updateChart,
     removeChart,
   } = useFileSystem();
-    
+
+  const [editingChartIndex, setEditingChartIndex] = useState(null);  
   const { user, logout, theme, setTheme } = useAuth();
   const canvasRef = useRef(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -1949,6 +1962,13 @@ const ModelDetail = () => {
                           isEditing={!isPresentationMode}
                           activeColor={activeColor}
                           onDelete={() => setChartToDelete(idx)}
+
+                          // NEW: Pass Edit Handler
+                          onEdit={() => {
+                            setEditingChartIndex(idx);
+                            setIsChartBuilderOpen(true);
+                          }}
+
                           // --- NEW: ZOOM PROPS ---
                           isZoomed={!!zoomStates[idx]}
                           onResetZoom={() => {
@@ -2026,11 +2046,25 @@ const ModelDetail = () => {
 
             <ChartBuilder
               isOpen={isChartBuilderOpen}
-              onClose={() => setIsChartBuilderOpen(false)}
+              onClose={() => {
+                setIsChartBuilderOpen(false);
+                setEditingChartIndex(null); // Reset on close
+              }}
               columns={sheetData[0] || []}
-              onSave={(config) =>
-                saveChart(selectedModel.id, activeSheet, config)
-              }
+              
+              // Pass the config if we are editing
+              initialConfig={editingChartIndex !== null ? manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.[editingChartIndex] : null}
+              
+              onSave={(config) => {
+                if (editingChartIndex !== null) {
+                  // UPDATE EXISTING CHART
+                  updateChart(selectedModel.id, activeSheet, editingChartIndex, config);
+                } else {
+                  // CREATE NEW CHART
+                  saveChart(selectedModel.id, activeSheet, config);
+                }
+                setEditingChartIndex(null); // Reset
+              }}
             />
 
             {/* DELETE CONFIRMATION MODAL - CORRECTLY PLACED */}

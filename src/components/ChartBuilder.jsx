@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle, Table } from 'lucide-react';
 
-const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
+const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
   const [title, setTitle] = useState('');
   const [type, setType] = useState('bar'); 
   const [xAxis, setXAxis] = useState('');
@@ -9,16 +9,28 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
   const [threshold, setThreshold] = useState(''); 
   const [xAxisAngle, setXAxisAngle] = useState(0); // Default 0 (Horizontal)
 
-  // Reset state when opening
+// Reset or Load state when opening
   useEffect(() => {
     if (isOpen) {
-      setTitle('');
-      setXAxis(columns[0] || ''); 
-      setDataKeys([]); 
-      setThreshold('');
-      setXAxisAngle(0);
+      if (initialConfig) {
+        // EDIT MODE: Load existing config
+        setTitle(initialConfig.title || '');
+        setType(initialConfig.type || 'bar');
+        setXAxis(initialConfig.xAxis || columns[0] || '');
+        setDataKeys(initialConfig.dataKeys || []);
+        setThreshold(initialConfig.threshold || '');
+        setXAxisAngle(initialConfig.xAxisAngle || 0);
+      } else {
+        // CREATE MODE: Reset to defaults
+        setTitle('');
+        setType('bar');
+        setXAxis(columns[0] || ''); 
+        setDataKeys([]); 
+        setThreshold('');
+        setXAxisAngle(0);
+      }
     }
-  }, [isOpen, columns]);
+  }, [isOpen, initialConfig, columns]);
 
   if (!isOpen) return null;
 
@@ -187,7 +199,8 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
             onClick={handleSave}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-medium transition-colors"
           >
-            <Save className="w-4 h-4" /> Create Widget
+            <Save className="w-4 h-4" /> 
+            {initialConfig ? "Save Changes" : "Create Widget"}
           </button>
         </div>
       </div>
