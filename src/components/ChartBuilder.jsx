@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle, Table, Palette, Plus, Check } from 'lucide-react';
+import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle, Table, Palette, Plus, Check, Type, AlignLeft, Eye, EyeOff } from 'lucide-react';
 
-// --- 1. QUICK ACCESS PALETTES (Visible on main screen) ---
+// --- 1. QUICK ACCESS PALETTES ---
 const QUICK_PALETTES = {
   /* =======================
      CORE / DEFAULT
@@ -70,7 +70,7 @@ const QUICK_PALETTES = {
   },
 
   /* =======================
-     NATURE (NOT SHADES)
+     NATURE
   ======================= */
   forest: {
     name: "Emerald Forest",
@@ -112,7 +112,7 @@ const QUICK_PALETTES = {
   },
 
   /* =======================
-     PASTEL BUT DISTINCT
+     PASTEL
   ======================= */
   pastel: {
     name: "Soft Spectrum",
@@ -133,7 +133,7 @@ const QUICK_PALETTES = {
   },
 
   /* =======================
-     DARK MODE DONUTS
+     DARK MODE
   ======================= */
   darkNeon: {
     name: "Dark Neon",
@@ -144,9 +144,6 @@ const QUICK_PALETTES = {
     ]
   },
 
-  /* =======================
-     MONO (INTENTIONAL)
-  ======================= */
   mono: {
     name: "Slate Minimal",
     colors: [
@@ -154,10 +151,77 @@ const QUICK_PALETTES = {
       "#94A3B8", "#CBD5E1", "#E2E8F0",
       "#F8FAFC"
     ]
+  },
+
+  /* =======================
+     🤍 WHITE SHADES
+     (White first, then shades)
+  ======================= */
+  white: {
+    name: "Pure White",
+    colors: [
+      "#FFFFFF",
+      "#F8FAFC",
+      "#F1F5F9",
+      "#E2E8F0",
+      "#CBD5E1",
+      "#94A3B8",
+      "#64748B"
+    ]
+  },
+
+  /* =======================
+     🧈 CREAM / IVORY
+  ======================= */
+  cream: {
+    name: "Cream Ivory",
+    colors: [
+      "#FFFDF7",
+      "#FFF7E6",
+      "#FFF1D6",
+      "#FFE8B6",
+      "#F5DEB3",
+      "#E6CFA3",
+      "#D2B48C"
+    ]
+  },
+
+  /* =======================
+     🧑‍🦰 SKIN / NUDE TONES
+  ======================= */
+  skin: {
+    name: "Skin Tones",
+    colors: [
+      "#FFF1E6",
+      "#FADADD",
+      "#F5CBA7",
+      "#E8B598",
+      "#D2A679",
+      "#B08968",
+      "#8D6E63"
+    ]
+  },
+
+  /* =======================
+     🤍 WHITE → CREAM → SKIN
+     (Perfect for premium donuts)
+  ======================= */
+  neutralLuxury: {
+    name: "Neutral Luxury",
+    colors: [
+      "#FFFFFF",
+      "#F8FAF5",
+      "#FFF1D6",
+      "#F5DEB3",
+      "#E8C39E",
+      "#CFAE8A",
+      "#A47551"
+    ]
   }
 };
 
-// --- 2. EXTENDED THEME LIBRARY (Inside the "+" Modal) ---
+
+
 const EXTENDED_THEMES = [
   /* ================================
      DISTINCT & CATEGORICAL (DONUT)
@@ -169,52 +233,36 @@ const EXTENDED_THEMES = [
         id: "vibrant",
         name: "Vibrant Pop",
         colors: [
-          "#FF005C",
-          "#FFD700",
-          "#00E5FF",
-          "#2979FF",
-          "#651FFF",
-          "#00C853",
-          "#FF6D00",
-        ],
+          "#FF005C", "#FFD700", "#00E5FF",
+          "#2979FF", "#651FFF", "#00C853",
+          "#FF6D00"
+        ]
       },
       {
         id: "neon_business",
         name: "Neon Business",
         colors: [
-          "#00F5D4",
-          "#F15BB5",
-          "#FEE440",
-          "#3A86FF",
-          "#8338EC",
-          "#FB5607",
-        ],
+          "#00F5D4", "#F15BB5", "#FEE440",
+          "#3A86FF", "#8338EC", "#FB5607"
+        ]
       },
       {
         id: "traffic_plus",
         name: "Stoplight Plus",
         colors: [
-          "#EF4444",
-          "#F59E0B",
-          "#10B981",
-          "#3B82F6",
-          "#8B5CF6",
-          "#EC4899",
-        ],
+          "#EF4444", "#F59E0B", "#10B981",
+          "#3B82F6", "#8B5CF6", "#EC4899"
+        ]
       },
       {
         id: "bold_contrast",
         name: "Bold Contrast",
         colors: [
-          "#0F172A",
-          "#DC2626",
-          "#FACC15",
-          "#2563EB",
-          "#22C55E",
-          "#FFFFFF",
-        ],
-      },
-    ],
+          "#0F172A", "#DC2626", "#FACC15",
+          "#2563EB", "#22C55E", "#FFFFFF"
+        ]
+      }
+    ]
   },
 
   /* ================================
@@ -227,51 +275,35 @@ const EXTENDED_THEMES = [
         id: "blue_depth",
         name: "Blue Depth",
         colors: [
-          "#0B132B",
-          "#1C2541",
-          "#3A86FF",
-          "#5BC0EB",
-          "#A9DEF9",
-          "#E0FBFC",
-        ],
+          "#0B132B", "#1C2541", "#3A86FF",
+          "#5BC0EB", "#A9DEF9", "#E0FBFC"
+        ]
       },
       {
         id: "purple_haze",
         name: "Purple Haze",
         colors: [
-          "#2D0F4E",
-          "#5A189A",
-          "#7B2CBF",
-          "#9D4EDD",
-          "#C77DFF",
-          "#E0AAFF",
-        ],
+          "#2D0F4E", "#5A189A", "#7B2CBF",
+          "#9D4EDD", "#C77DFF", "#E0AAFF"
+        ]
       },
       {
         id: "sunset_heat",
         name: "Sunset Heat",
         colors: [
-          "#7F1D1D",
-          "#B91C1C",
-          "#EF4444",
-          "#F97316",
-          "#FBBF24",
-          "#FDE68A",
-        ],
+          "#7F1D1D", "#B91C1C", "#EF4444",
+          "#F97316", "#FBBF24", "#FDE68A"
+        ]
       },
       {
         id: "teal_tides",
         name: "Teal Tides",
         colors: [
-          "#042F2E",
-          "#115E59",
-          "#0D9488",
-          "#2DD4BF",
-          "#5EEAD4",
-          "#CCFBF1",
-        ],
-      },
-    ],
+          "#042F2E", "#115E59", "#0D9488",
+          "#2DD4BF", "#5EEAD4", "#CCFBF1"
+        ]
+      }
+    ]
   },
 
   /* ================================
@@ -284,27 +316,19 @@ const EXTENDED_THEMES = [
         id: "soft_pastel",
         name: "Soft Pastel",
         colors: [
-          "#FFADAD",
-          "#FFD6A5",
-          "#FDFFB6",
-          "#CAFFBF",
-          "#9BF6FF",
-          "#BDB2FF",
-        ],
+          "#FFADAD", "#FFD6A5", "#FDFFB6",
+          "#CAFFBF", "#9BF6FF", "#BDB2FF"
+        ]
       },
       {
         id: "calm_ui",
         name: "Calm UI",
         colors: [
-          "#E0E7FF",
-          "#C7D2FE",
-          "#A5B4FC",
-          "#93C5FD",
-          "#99F6E4",
-          "#D1FAE5",
-        ],
-      },
-    ],
+          "#E0E7FF", "#C7D2FE", "#A5B4FC",
+          "#93C5FD", "#99F6E4", "#D1FAE5"
+        ]
+      }
+    ]
   },
 
   /* ================================
@@ -317,41 +341,30 @@ const EXTENDED_THEMES = [
         id: "barclays",
         name: "Barclays Classic",
         colors: [
-          "#00AEEF",
-          "#00395D",
-          "#0077B6",
-          "#0096C7",
-          "#90E0EF",
-          "#FFFFFF",
-        ],
+          "#00AEEF", "#00395D", "#0077B6",
+          "#0096C7", "#90E0EF", "#FFFFFF"
+        ]
       },
       {
         id: "finance_dark",
         name: "Finance Dark",
         colors: [
-          "#020617",
-          "#0F172A",
-          "#1E293B",
-          "#334155",
-          "#64748B",
-          "#94A3B8",
-        ],
+          "#020617", "#0F172A", "#1E293B",
+          "#334155", "#64748B", "#94A3B8"
+        ]
       },
       {
         id: "executive_gold",
         name: "Executive Gold",
         colors: [
-          "#1C1917",
-          "#44403C",
-          "#78716C",
-          "#D4AF37",
-          "#F5E6A8",
-          "#FAFAF9",
-        ],
-      },
-    ],
-  },
+          "#1C1917", "#44403C", "#78716C",
+          "#D4AF37", "#F5E6A8", "#FAFAF9"
+        ]
+      }
+    ]
+  }
 ];
+
 
 const CURRENCY_OPTIONS = [
   { id: 'none', label: 'Number (1,000)' },
@@ -370,12 +383,20 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
   const [threshold, setThreshold] = useState(''); 
   const [xAxisAngle, setXAxisAngle] = useState(0);
   const [showDataLabels, setShowDataLabels] = useState(false);
-
+  
   // Color State
   const [selectedPaletteId, setSelectedPaletteId] = useState('default');
-  const [customColors, setCustomColors] = useState(null); // Stores colors if chosen from library
+  const [customColors, setCustomColors] = useState(null); 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  
+  // Currency State
   const [currency, setCurrency] = useState('none');
+
+  const [showTitle, setShowTitle] = useState(true); // Default to visible
+
+  // Text Widget State
+  const [textContent, setTextContent] = useState('');
+  const [textStyle, setTextStyle] = useState('body'); 
 
   // Reset or Load state when opening
   useEffect(() => {
@@ -388,20 +409,19 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
         setThreshold(initialConfig.threshold || '');
         setXAxisAngle(initialConfig.xAxisAngle || 0);
         setShowDataLabels(initialConfig.showDataLabels || false);
-        setCurrency(initialConfig.currency || 'none');
-
+        setShowTitle(initialConfig.showTitle !== false); // Default true if undefined
+        setTextContent(initialConfig.textContent || '');
+        setTextStyle(initialConfig.textStyle || 'body');
+        
         // Restore Palette Logic
         if (initialConfig.colors && initialConfig.colors.length > 1) {
-             // 1. Check Quick Palettes
              const quickMatch = Object.keys(QUICK_PALETTES).find(key => 
                JSON.stringify(QUICK_PALETTES[key].colors) === JSON.stringify(initialConfig.colors)
              );
-             
              if (quickMatch) {
                setSelectedPaletteId(quickMatch);
                setCustomColors(null);
              } else {
-               // 2. Assume it's a custom/library theme
                setSelectedPaletteId('custom');
                setCustomColors(initialConfig.colors);
              }
@@ -419,6 +439,10 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
         setXAxisAngle(0);
         setSelectedPaletteId('default');
         setCustomColors(null);
+        setShowDataLabels(false);
+        setCurrency('none');
+        setTextContent('');
+        setTextStyle('body');
       }
     }
   }, [isOpen, initialConfig, columns]);
@@ -436,12 +460,18 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
   };
 
   const handleSave = () => {
-    if (!title || !xAxis || dataKeys.length === 0) {
-      alert("Please fill in Title, X-Axis, and at least one Data Series.");
+    // 1. Validation
+    if (!title) {
+      alert("Please enter a Chart Title.");
       return;
     }
-    
-    // Determine final colors
+    // FIX: Only check for Axes if it is NOT a text widget
+    if (type !== 'text' && (!xAxis || dataKeys.length === 0)) {
+      alert("Please fill in X-Axis and at least one Data Series.");
+      return;
+    }
+
+    // 2. Determine Colors
     let finalColors = QUICK_PALETTES['default'].colors;
     if (selectedPaletteId === 'custom' && customColors) {
       finalColors = customColors;
@@ -449,6 +479,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
       finalColors = QUICK_PALETTES[selectedPaletteId].colors;
     }
 
+    // 3. Construct Object
     const newChart = {
       id: Date.now().toString(),
       title,
@@ -457,18 +488,17 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
       dataKeys,
       xAxisAngle: Number(xAxisAngle),
       threshold: threshold ? parseFloat(threshold) : null,
-      colors: finalColors, 
+      colors: finalColors,
       showDataLabels,
       currency,
+      textContent, 
+      textStyle,   
+      showTitle,
     };
     
+    // 4. Save & Close
     onSave(newChart);
     onClose();
-  };
-
-  const getActiveColors = () => {
-    if (selectedPaletteId === 'custom' && customColors) return customColors;
-    return QUICK_PALETTES[selectedPaletteId]?.colors || QUICK_PALETTES['default'].colors;
   };
 
   return (
@@ -483,26 +513,35 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5"/></button>
         </div>
 
-        {/* Body (Scrollable) */}
+        {/* Body */}
         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
           
           {/* Row 1: Title & Type */}
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Title</label>
-              <input 
-                type="text" 
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 transition-all"
-                placeholder="e.g. Volume Comparison"
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className={`w-full bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-10 py-2 text-white outline-none focus:border-blue-500 transition-all ${!showTitle ? 'opacity-50' : ''}`}
+                  placeholder="e.g. Analysis Header"
+                />
+                <button
+                  onClick={() => setShowTitle(!showTitle)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                  title={showTitle ? "Hide Title in Widget" : "Show Title in Widget"}
+                >
+                  {showTitle ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Chart Type</label>
               <div className="flex gap-2">
-                  {['bar', 'line', 'area', 'donut', 'table'].map(t => (
+                  {['bar', 'line', 'area', 'donut', 'table', 'text'].map(t => (
                     <button
                       key={t}
                       onClick={() => setType(t)}
@@ -517,79 +556,131 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                       {t === 'area' && <TrendingUp className="w-5 h-5 fill-current opacity-50" />}
                       {t === 'donut' && <PieChart className="w-5 h-5" />}
                       {t === 'table' && <Table className="w-5 h-5" />} 
-                      <span className="text-xs font-medium uppercase tracking-wider">{t}</span>
+                      {t === 'text' && <Type className="w-5 h-5" />}
+                      
+                      <span className="text-[10px] font-medium uppercase tracking-wider">{t}</span>
                     </button>
                   ))}
               </div>
             </div>
           </div>
 
-          {/* Row 2: Axes Configuration */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* X-Axis */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-bold text-slate-500 uppercase">
-                  {type === 'donut' ? 'Segment Label' : 'X-Axis (Category)'}
-                </label>
-                {type !== 'donut' && type !== 'table' && (
-                  <select 
-                    value={xAxisAngle}
-                    onChange={(e) => setXAxisAngle(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-xs text-blue-400 rounded px-2 py-0.5 outline-none focus:border-blue-500"
-                  >
-                    <option value="0">Horizontal (0°)</option>
-                    <option value="-45">Angled (-45°)</option>
-                    <option value="-90">Vertical (-90°)</option>
-                  </select>
-                )}
-              </div>
-              
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-40 overflow-y-auto custom-scrollbar">
-                {columns.map(col => (
-                  <button
-                    key={col}
-                    onClick={() => setXAxis(col)}
-                    className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 ${xAxis === col ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50' : 'text-slate-400 hover:bg-slate-700'}`}
-                  >
-                    {col}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Row 2: Content Configuration */}
+          <div className="grid grid-cols-1 gap-6">
+            
+            {/* --- CASE A: TEXT WIDGET INPUTS --- */}
+            {type === 'text' ? (
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-4">
+                
+                {/* Text Style Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Text Style</label>
+                  <div className="flex gap-2">
+                    {[
+                      { id: 'h1', label: 'Big Header', icon: 'H1' },
+                      { id: 'h2', label: 'Sub Header', icon: 'H2' },
+                      { id: 'body', label: 'Normal Text', icon: 'Aa' },
+                      { id: 'quote', label: 'Highlight', icon: '""' }
+                    ].map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setTextStyle(s.id)}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+                          textStyle === s.id 
+                            ? 'bg-blue-600 text-white shadow-lg' 
+                            : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="opacity-50">{s.icon}</span> {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Y-Axis */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                {type === 'donut' ? 'Value Size (Pick 1)' : 'Y-Axis (Select Multiple)'}
-              </label>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-40 overflow-y-auto custom-scrollbar">
-                {type === 'donut' && (
-                  <button
-                    onClick={() => setDataKeys(['Frequency (Count)'])}
-                    className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 flex justify-between items-center ${
-                      dataKeys.includes('Frequency (Count)') 
-                        ? 'bg-purple-600/20 text-purple-400 border border-purple-500/50' 
-                        : 'text-slate-400 hover:bg-slate-700'
-                    }`}
-                  >
-                    <span className="truncate italic font-medium">Frequency (Row Count)</span>
-                    {dataKeys.includes('Frequency (Count)') && <div className="w-2 h-2 rounded-full bg-purple-500"></div>}
-                  </button>
-                )}
-
-                {columns.map(col => (
-                  <button
-                    key={col}
-                    onClick={() => toggleDataKey(col)}
-                    className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 flex justify-between items-center ${dataKeys.includes(col) ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-400 hover:bg-slate-700'}`}
-                  >
-                    <span className="truncate">{col}</span>
-                    {dataKeys.includes(col) && <div className="w-2 h-2 rounded-full bg-emerald-500"></div>}
-                  </button>
-                ))}
+                {/* Text Content Area */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                    <AlignLeft className="w-3 h-3" /> Content
+                  </label>
+                  <textarea
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    rows={5}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none custom-scrollbar"
+                    placeholder="Enter your notes, insights, or header text here..."
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              /* --- CASE B: STANDARD CHART AXIS INPUTS --- */
+              <div className="grid grid-cols-2 gap-6">
+                {/* X-Axis */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">
+                      {type === 'donut' ? 'Segment Label' : 'X-Axis (Category)'}
+                    </label>
+                    {type !== 'donut' && type !== 'table' && (
+                      <select 
+                        value={xAxisAngle}
+                        onChange={(e) => setXAxisAngle(e.target.value)}
+                        className="bg-slate-800 border border-slate-700 text-xs text-blue-400 rounded px-2 py-0.5 outline-none focus:border-blue-500"
+                      >
+                        <option value="0">Horizontal (0°)</option>
+                        <option value="-45">Angled (-45°)</option>
+                        <option value="-90">Vertical (-90°)</option>
+                      </select>
+                    )}
+                  </div>
+                  
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-40 overflow-y-auto custom-scrollbar">
+                    {columns.map(col => (
+                      <button
+                        key={col}
+                        onClick={() => setXAxis(col)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 ${xAxis === col ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50' : 'text-slate-400 hover:bg-slate-700'}`}
+                      >
+                        {col}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Y-Axis */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                    {type === 'donut' ? 'Value Size (Pick 1)' : 'Y-Axis (Select Multiple)'}
+                  </label>
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-40 overflow-y-auto custom-scrollbar">
+                    
+                    {type === 'donut' && (
+                      <button
+                        onClick={() => setDataKeys(['Frequency (Count)'])}
+                        className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 flex justify-between items-center ${
+                          dataKeys.includes('Frequency (Count)') 
+                            ? 'bg-purple-600/20 text-purple-400 border border-purple-500/50' 
+                            : 'text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="truncate italic font-medium">Frequency (Row Count)</span>
+                        {dataKeys.includes('Frequency (Count)') && <div className="w-2 h-2 rounded-full bg-purple-500"></div>}
+                      </button>
+                    )}
+
+                    {columns.map(col => (
+                      <button
+                        key={col}
+                        onClick={() => toggleDataKey(col)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-sm mb-1 flex justify-between items-center ${dataKeys.includes(col) ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/50' : 'text-slate-400 hover:bg-slate-700'}`}
+                      >
+                        <span className="truncate">{col}</span>
+                        {dataKeys.includes(col) && <div className="w-2 h-2 rounded-full bg-emerald-500"></div>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Row 3: Palette, Data Labels & Threshold */}
@@ -599,9 +690,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
                   <Palette className="w-3 h-3" /> Color Theme
                 </label>
-                {/* ... existing palette code ... */}
                 <div className="flex flex-wrap gap-2 items-center"> 
-                  {/* ... palette buttons ... */}
                   {Object.keys(QUICK_PALETTES).map(key => (
                     <button
                       key={key}
@@ -615,7 +704,6 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                       title={QUICK_PALETTES[key].name}
                     />
                   ))}
-                  {/* ... rest of palette code ... */}
                   <div className="w-px h-6 bg-slate-700"></div>
                   <button
                     onClick={() => setIsThemeModalOpen(true)}
@@ -630,61 +718,58 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                 </div>
              </div>
 
-             {/* SETTINGS GROUP: Data Labels & Threshold */}
-             <div className="space-y-4">
-                {/* 1. DATA FORMATTING GROUP */}
-                {type !== 'table' && (
-                  <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 space-y-3">
-                    
-                    {/* Toggle: Show Labels */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Show Data Labels</span>
-                      <button
-                        onClick={() => setShowDataLabels(!showDataLabels)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showDataLabels ? 'bg-blue-600' : 'bg-slate-600'}`}
-                      >
-                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showDataLabels ? 'translate-x-5' : 'translate-x-1'}`} />
-                      </button>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="h-px bg-slate-700/50"></div>
-
-                    {/* Dropdown: Currency */}
-                    <div>
-                       <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">Value Format</label>
-                       <select
-                          value={currency}
-                          onChange={(e) => setCurrency(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded px-2 py-1.5 focus:border-blue-500 outline-none"
-                       >
-                          {CURRENCY_OPTIONS.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.label}</option>
-                          ))}
-                       </select>
-                    </div>
+             {/* DATA FORMATTING GROUP */}
+             {type !== 'table' && type !== 'text' && (
+                <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 space-y-3">
+                  
+                  {/* Toggle: Show Labels */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-400 uppercase">Show Data Labels</span>
+                    <button
+                      onClick={() => setShowDataLabels(!showDataLabels)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showDataLabels ? 'bg-blue-600' : 'bg-slate-600'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showDataLabels ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
                   </div>
-                )}
 
-                {/* 2. THRESHOLD INPUT */}
-                {type !== 'donut' && type !== 'table' && (
-                   <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                        <AlertCircle className="w-3 h-3 text-red-400" /> Threshold Alert
-                      </label>
-                      <div className="relative">
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          value={threshold}
-                          onChange={(e) => setThreshold(e.target.value)}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50"
-                          placeholder="Limit (e.g. 0.1)"
-                        />
-                      </div>
-                   </div>
-                )}
-             </div>
+                  {/* Divider */}
+                  <div className="h-px bg-slate-700/50"></div>
+
+                  {/* Dropdown: Currency */}
+                  <div>
+                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">Value Format</label>
+                     <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+                     >
+                        {CURRENCY_OPTIONS.map(opt => (
+                          <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                     </select>
+                  </div>
+                </div>
+             )}
+
+             {/* THRESHOLD INPUT */}
+             {type !== 'donut' && type !== 'table' && type !== 'text' && (
+               <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                    <AlertCircle className="w-3 h-3 text-red-400" /> Threshold Alert
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={threshold}
+                      onChange={(e) => setThreshold(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50"
+                      placeholder="Limit (e.g. 0.1)"
+                    />
+                  </div>
+               </div>
+             )}
           </div>
         </div>
 
@@ -728,8 +813,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {category.themes.map((theme) => {
-                      // Check if this theme is currently active (by comparing color arrays)
-                      const isActive = JSON.stringify(theme.colors) === JSON.stringify(getActiveColors());
+                      const isActive = JSON.stringify(theme.colors) === JSON.stringify(selectedPaletteId === 'custom' ? customColors : QUICK_PALETTES[selectedPaletteId]?.colors);
                       
                       return (
                         <button
@@ -737,18 +821,16 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
                           onClick={() => {
                             setSelectedPaletteId('custom');
                             setCustomColors(theme.colors);
-                            setIsThemeModalOpen(false); // Close on select
+                            setIsThemeModalOpen(false); 
                           }}
                           className={`group relative p-3 rounded-xl border-2 transition-all hover:scale-[1.02] ${isActive ? 'border-blue-500 bg-slate-800' : 'border-slate-800 bg-slate-900 hover:border-slate-600'}`}
                         >
-                          {/* Color Preview Strip */}
                           <div className="h-8 w-full rounded-lg mb-3 flex overflow-hidden">
                             {theme.colors.map((c, i) => (
                               <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
                             ))}
                           </div>
                           
-                          {/* Name & Checkmark */}
                           <div className="flex justify-between items-center">
                             <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
                               {theme.name}

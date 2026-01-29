@@ -122,7 +122,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0, showDataLabels = false } = config;
+  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0, showDataLabels = false, textContent, textStyle = 'body', showTitle = true } = config;
 
   // --- HELPER: CURRENCY FORMATTER (Moved Inside) ---
   const formatValue = (val) => {
@@ -182,13 +182,58 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     setRefAreaRight('');
   };
 
+
+  // --- 0. TEXT WIDGET ---
+  if (type === 'text') {
+    const activeColor = colors[0] || '#3b82f6';
+    
+    return (
+      <div className="w-full h-full flex flex-col p-6 overflow-y-auto custom-scrollbar">
+        {/* Optional Title (Respects showTitle toggle) */}
+        {showTitle && config.title && (
+           <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-3 pb-2 border-b border-slate-800">
+              {config.title}
+           </h3>
+        )}
+        
+        <div className="flex-1">
+          {textStyle === 'h1' && (
+            <h1 className="text-4xl font-black text-white leading-tight" style={{ color: activeColor }}>
+              {textContent}
+            </h1>
+          )}
+          
+          {textStyle === 'h2' && (
+            <h2 className="text-2xl font-bold text-slate-200 leading-snug">
+              {textContent}
+            </h2>
+          )}
+          
+          {textStyle === 'body' && (
+            <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">
+              {textContent}
+            </p>
+          )}
+          
+          {textStyle === 'quote' && (
+            <div className="pl-4 border-l-4 italic text-lg font-medium text-slate-300" style={{ borderColor: activeColor }}>
+              "{textContent}"
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // --- 1. TABLE VIEW ---
   if (type === 'table') {
     return (
       <div className="w-full h-full flex flex-col p-4 overflow-hidden">
-         <h3 className="text-white font-bold mb-3 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm flex-shrink-0">
-            {config.title || 'Data Table'}
-         </h3>
+         {showTitle && (
+           <h3 className="text-white font-bold mb-3 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm flex-shrink-0">
+              {config.title || 'Data Table'}
+           </h3>
+         )}
          <div className="flex-1 overflow-y-auto rounded-lg border border-slate-800 bg-slate-900/50 custom-scrollbar">            
             <table className="w-full text-left text-sm border-collapse">
                <thead className="sticky top-0 bg-slate-900 z-10 shadow-lg shadow-slate-950/50">
@@ -258,9 +303,11 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
 
     return (
        <div className="w-full h-full p-2 flex flex-col relative">
-         <h3 className="text-white font-bold mb-1 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm z-10">
-            {config.title || (isFrequency ? `${xAxis} Distribution` : dataKey)}
-         </h3>
+         {showTitle && (
+           <h3 className="text-white font-bold mb-1 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm z-10">
+              {config.title || (isFrequency ? `${xAxis} Distribution` : dataKey)}
+           </h3>
+         )}
          <div className="flex-1 w-full min-h-0 relative">
            {/* Center Text (Total) */}
            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
@@ -298,11 +345,13 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
   // --- 3. BAR / LINE / AREA ---
   return (
     <div className="w-full h-full flex flex-col p-4">
-      <div className="flex justify-between items-center mb-2">
-         <h3 className="text-white font-bold pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm">
-            {config.title || 'Untitled Chart'}
-         </h3>
-      </div>
+      {showTitle && (
+        <div className="flex justify-between items-center mb-2">
+           <h3 className="text-white font-bold pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm">
+              {config.title || 'Untitled Chart'}
+           </h3>
+        </div>
+      )}
       
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
