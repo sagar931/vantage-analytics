@@ -7,6 +7,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
   const [xAxis, setXAxis] = useState('');
   const [dataKeys, setDataKeys] = useState([]); 
   const [threshold, setThreshold] = useState(''); 
+  const [xAxisAngle, setXAxisAngle] = useState(0); // Default 0 (Horizontal)
 
   // Reset state when opening
   useEffect(() => {
@@ -15,6 +16,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
       setXAxis(columns[0] || ''); 
       setDataKeys([]); 
       setThreshold('');
+      setXAxisAngle(0);
     }
   }, [isOpen, columns]);
 
@@ -42,8 +44,10 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
       type,
       xAxis,
       dataKeys,
+      xAxisAngle: Number(xAxisAngle),
       threshold: threshold ? parseFloat(threshold) : null,
-      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4', '#f43f5e']
+      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4', '#f43f5e'],
+      xAxisAngle: Number(xAxisAngle)
     };
     
     onSave(newChart);
@@ -106,9 +110,25 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave }) => {
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                {type === 'donut' ? 'Segment Label' : 'X-Axis (Category)'}
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  {type === 'donut' ? 'Segment Label' : 'X-Axis (Category)'}
+                </label>
+                
+                {/* ROTATION CONTROL */}
+                {type !== 'donut' && type !== 'table' && (
+                  <select 
+                    value={xAxisAngle}
+                    onChange={(e) => setXAxisAngle(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 text-xs text-blue-400 rounded px-2 py-0.5 outline-none focus:border-blue-500"
+                  >
+                    <option value="0">Horizontal (0°)</option>
+                    <option value="-45">Angled (-45°)</option>
+                    <option value="-90">Vertical (-90°)</option>
+                  </select>
+                )}
+              </div>
+              
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-48 overflow-y-auto custom-scrollbar">
                 {columns.map(col => (
                   <button

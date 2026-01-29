@@ -12,42 +12,39 @@ const getColorPalette = (baseColor, count) => {
     '#10b981': ['#10b981', '#34d399', '#059669', '#6ee7b7', '#047857'], 
     '#f59e0b': ['#f59e0b', '#fbbf24', '#d97706', '#fcd34d', '#b45309'], 
     '#8b5cf6': ['#8b5cf6', '#a78bfa', '#7c3aed', '#c4b5fd', '#6d28d9'], 
-    '#ec4899': ['#ec4899', '#f472b6', '#db2777', '#fbcfe8', '#be185d'], 
   };
-
-  if (THEMES[baseColor]) {
-    if (count <= 5) return THEMES[baseColor].slice(0, count);
-    return Array(count).fill(0).map((_, i) => THEMES[baseColor][i % 5]);
-  }
-  return Array(count).fill(0).map((_, i) => baseColor); 
+  
+  const theme = THEMES[baseColor] || THEMES['#3b82f6'];
+  if (count <= 1) return [baseColor];
+  
+  // Generate palette by cycling through the theme shades
+  return Array.from({ length: count }, (_, i) => theme[i % theme.length]);
 };
 
-// --- HELPER 2: DATE FORMATTER ---
+// --- HELPER 2: EXCEL DATE FORMATTER ---
 const formatExcelDate = (serial) => {
-   if (typeof serial === 'number' && serial > 35000 && serial < 60000) {
-      const date = new Date((serial - 25569) * 86400 * 1000);
-      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); 
-   }
-   return serial;
+  // If it's already a string like "Jan-25", return it
+  if (typeof serial === 'string') return serial;
+  // If it's a number (Excel Serial Date)
+  if (typeof serial === 'number') {
+     const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
+     // Return short month format (e.g., "Jan 25")
+     return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  }
+  return serial;
 };
 
 // --- HELPER 3: DONUT LABELS ---
-const RADIAN = Math.PI / 180;
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value, stroke }) => {
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+  const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const cos = Math.cos(-midAngle * RADIAN);
-  const ex = cx + (outerRadius + 20) * cos;
-  const ey = cy + (outerRadius + 20) * Math.sin(-midAngle * RADIAN);
-  const textAnchor = cos >= 0 ? 'start' : 'end';
 
   return (
-    <g>
-      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#94a3b8" fontSize={12} dy={4}>
-        {name} ({value.toLocaleString()})
-      </text>
-    </g>
+    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
   );
 };
 
@@ -65,7 +62,8 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'] } = config;
+  // Destructure config (Removed manual xAxisAngle)
+  const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0 } = config;
 
   const validDataKeys = (dataKeys || []).filter(key => 
     data.length > 0 && Object.prototype.hasOwnProperty.call(data[0], key)
@@ -86,6 +84,14 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
 
   const visibleData = getVisibleData(); 
 
+  // --- SMART LOGIC: AUTO-ROTATE LABELS ---
+  // If visible data points > 6, rotate labels to prevent overlap
+  const isDenseData = visibleData.length > 6;
+  const autoAxisAngle = isDenseData ? -45 : 0;
+  const autoAxisAnchor = isDenseData ? "end" : "middle";
+  const autoAxisHeight = isDenseData ? 60 : 30; // Extra height for angled text
+  const autoDy = isDenseData ? 5 : 10;
+
   // --- EVENT HANDLERS ---
   const handleZoom = () => {
     if (refAreaLeft === refAreaRight || refAreaRight === '') {
@@ -95,23 +101,24 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     }
     let left = refAreaLeft;
     let right = refAreaRight;
+    // Ensure correct order based on data index
     const leftIdx = data.findIndex(i => i[xAxis] === left);
     const rightIdx = data.findIndex(i => i[xAxis] === right);
     if (leftIdx > rightIdx) [left, right] = [right, left];
+    
     if (onZoom) onZoom(left, right);
     setRefAreaLeft('');
     setRefAreaRight('');
   };
 
-  // --- 1. TABLE / CROSS-TAB VIEW (NEW FEATURE) ---
+  // --- 1. TABLE VIEW ---
   if (type === 'table') {
     return (
       <div className="w-full h-full flex flex-col p-4 overflow-hidden">
          <h3 className="text-white font-bold mb-3 pl-2 border-l-4 border-blue-500 uppercase tracking-wider text-sm flex-shrink-0">
             {config.title || 'Data Table'}
          </h3>
-         {/* FIX: added overflow-y-auto to enable scrolling, while keeping it invisible */}
-         <div className="flex-1 overflow-y-auto rounded-lg border border-slate-800 bg-slate-900/50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">            
+         <div className="flex-1 overflow-y-auto rounded-lg border border-slate-800 bg-slate-900/50 custom-scrollbar">            
             <table className="w-full text-left text-sm border-collapse">
                <thead className="sticky top-0 bg-slate-900 z-10 shadow-lg shadow-slate-950/50">
                   <tr>
@@ -120,7 +127,6 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                      </th>
                      {validDataKeys.map((key, i) => (
                         <th key={key} className="px-4 py-3 font-semibold text-slate-300 border-b border-slate-700 whitespace-nowrap text-right">
-                           {/* Color-coded header dot */}
                            <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: activePalette[i % activePalette.length] }}></span>
                            {key}
                         </th>
@@ -195,7 +201,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
     );
   }
 
-  // --- 3. BAR / LINE / AREA ---
+  // --- 3. STANDARD CHARTS (Bar, Line, Area) ---
   return (
     <div className="w-full h-full flex flex-col p-4">
       <div className="flex justify-between items-center mb-2">
@@ -222,7 +228,20 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               fontSize={11} 
               tickLine={false}
               axisLine={{ stroke: '#475569' }}
-              dy={10}
+              
+              // FIX: Connect the angle from config
+              angle={xAxisAngle} 
+              
+              // Dynamic Alignment: If rotated, align text to end so it looks neat
+              textAnchor={xAxisAngle !== 0 ? "end" : "middle"} 
+              
+              // Dynamic Height: Give more space if rotated (60px vs 30px)
+              height={xAxisAngle !== 0 ? 60 : 30} 
+              
+              // Dynamic Vertical Offset: Push down slightly if rotated
+              dy={xAxisAngle !== 0 ? 10 : 5} 
+              
+              interval={0} // Force show all labels
             />
             
             <YAxis 
@@ -248,7 +267,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
             <Legend wrapperStyle={{ paddingTop: '10px' }} iconType="circle" />
 
             {threshold && (
-               <ReferenceLine y={Number(threshold)} stroke="#ef4444" strokeDasharray="3 3" />
+               <ReferenceLine y={Number(threshold)} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Threshold', fill: '#ef4444', fontSize: 10 }} />
             )}
 
             {refAreaLeft && refAreaRight && (
@@ -259,6 +278,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               const seriesColor = activePalette[index % activePalette.length];
               const DataComponent = type === 'bar' ? Bar : (type === 'area' ? Area : Line);
               
+              // Special case for single-series Bar chart with threshold
               if (type === 'bar' && threshold && validDataKeys.length === 1) {
                 return (
                   <Bar key={key} dataKey={key} barSize={40} radius={[4, 4, 0, 0]}>
@@ -280,7 +300,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                   fill={seriesColor}    
                   stroke={seriesColor}  
                   fillOpacity={type === 'area' ? 0.2 : 0.8}
-                  barSize={validDataKeys.length > 1 ? 12 : 40}
+                  barSize={validDataKeys.length > 1 ? 12 : 40} // Thinner bars if multiple series
                   strokeWidth={2}
                   radius={[4, 4, 0, 0]}
                   activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} 
