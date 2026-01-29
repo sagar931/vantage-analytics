@@ -3,41 +3,354 @@ import { X, Save, BarChart2, TrendingUp, PieChart, AlertCircle, Table, Palette, 
 
 // --- 1. QUICK ACCESS PALETTES (Visible on main screen) ---
 const QUICK_PALETTES = {
-  default: { name: 'Vantage (Default)', colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'] },
-  neon:    { name: 'Cyberpunk Neon',    colors: ['#22d3ee', '#f472b6', '#a78bfa', '#facc15', '#4ade80', '#fb923c', '#e879f9'] },
-  sunset:  { name: 'Sunset Glow',       colors: ['#f59e0b', '#f97316', '#ef4444', '#ec4899', '#d946ef', '#8b5cf6', '#6366f1'] },
-  ocean:   { name: 'Deep Ocean',        colors: ['#0ea5e9', '#0284c7', '#0369a1', '#0c4a6e', '#0891b2', '#22d3ee', '#67e8f9'] },
-  forest:  { name: 'Emerald Forest',    colors: ['#10b981', '#059669', '#047857', '#84cc16', '#65a30d', '#3b82f6', '#06b6d4'] },
-  mono:    { name: 'Slate Minimal',     colors: ['#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#cbd5e1', '#e2e8f0'] },
+  /* =======================
+     CORE / DEFAULT
+  ======================= */
+  default: {
+    name: "Vantage (Default)",
+    colors: [
+      "#2563EB", "#16A34A", "#F59E0B",
+      "#DC2626", "#7C3AED", "#DB2777",
+      "#0891B2"
+    ]
+  },
+
+  /* =======================
+     HIGH-CONTRAST DONUT
+  ======================= */
+  contrast: {
+    name: "High Contrast",
+    colors: [
+      "#1D4ED8", "#DC2626", "#FACC15",
+      "#16A34A", "#9333EA", "#EA580C",
+      "#0891B2"
+    ]
+  },
+
+  /* =======================
+     NEON / MODERN
+  ======================= */
+  neon: {
+    name: "Cyberpunk Neon",
+    colors: [
+      "#00F5D4", "#FF5DA2", "#FEE440",
+      "#3A86FF", "#8338EC", "#FB5607",
+      "#9B5DE5"
+    ]
+  },
+
+  electric: {
+    name: "Electric Spectrum",
+    colors: [
+      "#00E5FF", "#2979FF", "#651FFF",
+      "#D500F9", "#FF1744", "#FF9100",
+      "#00E676"
+    ]
+  },
+
+  /* =======================
+     WARM / COOL MIXES
+  ======================= */
+  sunset: {
+    name: "Sunset Glow",
+    colors: [
+      "#FF6D00", "#F44336", "#E91E63",
+      "#9C27B0", "#673AB7", "#3F51B5",
+      "#2196F3"
+    ]
+  },
+
+  aurora: {
+    name: "Aurora Lights",
+    colors: [
+      "#00C853", "#64DD17", "#AEEA00",
+      "#00B0FF", "#651FFF", "#D500F9",
+      "#FF4081"
+    ]
+  },
+
+  /* =======================
+     NATURE (NOT SHADES)
+  ======================= */
+  forest: {
+    name: "Emerald Forest",
+    colors: [
+      "#2E7D32", "#66BB6A", "#9CCC65",
+      "#FFB300", "#8D6E63", "#1565C0",
+      "#26C6DA"
+    ]
+  },
+
+  desert: {
+    name: "Desert Earth",
+    colors: [
+      "#C62828", "#EF6C00", "#F9A825",
+      "#6D4C41", "#2E7D32", "#0277BD",
+      "#8E24AA"
+    ]
+  },
+
+  /* =======================
+     BUSINESS / FINANCE
+  ======================= */
+  finance: {
+    name: "Finance Pro",
+    colors: [
+      "#003049", "#2A9D8F", "#E9C46A",
+      "#F4A261", "#E76F51", "#264653",
+      "#6A4C93"
+    ]
+  },
+
+  executive: {
+    name: "Executive Boardroom",
+    colors: [
+      "#111827", "#1F2933", "#B45309",
+      "#CA8A04", "#2563EB", "#059669",
+      "#7C3AED"
+    ]
+  },
+
+  /* =======================
+     PASTEL BUT DISTINCT
+  ======================= */
+  pastel: {
+    name: "Soft Spectrum",
+    colors: [
+      "#FFB5A7", "#FCD5CE", "#CDB4DB",
+      "#BDE0FE", "#A8DADC", "#C7EDE6",
+      "#FFF1A8"
+    ]
+  },
+
+  playful: {
+    name: "Playful Market",
+    colors: [
+      "#FF595E", "#FFCA3A", "#8AC926",
+      "#1982C4", "#6A4C93", "#FF924C",
+      "#4D96FF"
+    ]
+  },
+
+  /* =======================
+     DARK MODE DONUTS
+  ======================= */
+  darkNeon: {
+    name: "Dark Neon",
+    colors: [
+      "#00E5FF", "#FF4081", "#C77DFF",
+      "#FFD60A", "#72EFDD", "#FF9F1C",
+      "#80FFDB"
+    ]
+  },
+
+  /* =======================
+     MONO (INTENTIONAL)
+  ======================= */
+  mono: {
+    name: "Slate Minimal",
+    colors: [
+      "#0F172A", "#334155", "#64748B",
+      "#94A3B8", "#CBD5E1", "#E2E8F0",
+      "#F8FAFC"
+    ]
+  }
 };
 
 // --- 2. EXTENDED THEME LIBRARY (Inside the "+" Modal) ---
 const EXTENDED_THEMES = [
+  /* ================================
+     DISTINCT & CATEGORICAL (DONUT)
+  ================================= */
   {
     category: "Distinct & Categorical",
     themes: [
-      { id: 'vibrant', name: 'Vibrant Pop', colors: ['#FF005C', '#FFD700', '#00E5FF', '#2979FF', '#651FFF', '#00C853'] },
-      { id: 'retro',   name: 'Retro Wave',  colors: ['#3b82f6', '#e11d48', '#fbbf24', '#10b981', '#8b5cf6', '#f472b6'] },
-      { id: 'traffic', name: 'Stoplight',   colors: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#64748b'] }, // R-Y-G-B
-      { id: 'bold',    name: 'Bold Contrast', colors: ['#1e293b', '#dc2626', '#facc15', '#2563eb', '#ffffff'] },
-    ]
+      {
+        id: "vibrant",
+        name: "Vibrant Pop",
+        colors: [
+          "#FF005C",
+          "#FFD700",
+          "#00E5FF",
+          "#2979FF",
+          "#651FFF",
+          "#00C853",
+          "#FF6D00",
+        ],
+      },
+      {
+        id: "neon_business",
+        name: "Neon Business",
+        colors: [
+          "#00F5D4",
+          "#F15BB5",
+          "#FEE440",
+          "#3A86FF",
+          "#8338EC",
+          "#FB5607",
+        ],
+      },
+      {
+        id: "traffic_plus",
+        name: "Stoplight Plus",
+        colors: [
+          "#EF4444",
+          "#F59E0B",
+          "#10B981",
+          "#3B82F6",
+          "#8B5CF6",
+          "#EC4899",
+        ],
+      },
+      {
+        id: "bold_contrast",
+        name: "Bold Contrast",
+        colors: [
+          "#0F172A",
+          "#DC2626",
+          "#FACC15",
+          "#2563EB",
+          "#22C55E",
+          "#FFFFFF",
+        ],
+      },
+    ],
   },
+
+  /* ================================
+     GRADIENT-STYLE SHADES (SMOOTH)
+  ================================= */
   {
     category: "Gradients & Shades",
     themes: [
-      { id: 'blue_grad',   name: 'Blue Depth',   colors: ['#1e3a8a', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'] },
-      { id: 'purple_grad', name: 'Purple Haze',  colors: ['#4c1d95', '#5b21b6', '#7c3aed', '#8b5cf6', '#a78bfa', '#c4b5fd'] },
-      { id: 'red_grad',    name: 'Red Heat',     colors: ['#7f1d1d', '#991b1b', '#b91c1c', '#dc2626', '#ef4444', '#f87171'] },
-      { id: 'teal_grad',   name: 'Teal Tides',   colors: ['#134e4a', '#115e59', '#0d9488', '#14b8a6', '#2dd4bf', '#5eead4'] },
-    ]
+      {
+        id: "blue_depth",
+        name: "Blue Depth",
+        colors: [
+          "#0B132B",
+          "#1C2541",
+          "#3A86FF",
+          "#5BC0EB",
+          "#A9DEF9",
+          "#E0FBFC",
+        ],
+      },
+      {
+        id: "purple_haze",
+        name: "Purple Haze",
+        colors: [
+          "#2D0F4E",
+          "#5A189A",
+          "#7B2CBF",
+          "#9D4EDD",
+          "#C77DFF",
+          "#E0AAFF",
+        ],
+      },
+      {
+        id: "sunset_heat",
+        name: "Sunset Heat",
+        colors: [
+          "#7F1D1D",
+          "#B91C1C",
+          "#EF4444",
+          "#F97316",
+          "#FBBF24",
+          "#FDE68A",
+        ],
+      },
+      {
+        id: "teal_tides",
+        name: "Teal Tides",
+        colors: [
+          "#042F2E",
+          "#115E59",
+          "#0D9488",
+          "#2DD4BF",
+          "#5EEAD4",
+          "#CCFBF1",
+        ],
+      },
+    ],
   },
+
+  /* ================================
+     PASTEL (FRIENDLY + MODAL SAFE)
+  ================================= */
+  {
+    category: "Pastel Business",
+    themes: [
+      {
+        id: "soft_pastel",
+        name: "Soft Pastel",
+        colors: [
+          "#FFADAD",
+          "#FFD6A5",
+          "#FDFFB6",
+          "#CAFFBF",
+          "#9BF6FF",
+          "#BDB2FF",
+        ],
+      },
+      {
+        id: "calm_ui",
+        name: "Calm UI",
+        colors: [
+          "#E0E7FF",
+          "#C7D2FE",
+          "#A5B4FC",
+          "#93C5FD",
+          "#99F6E4",
+          "#D1FAE5",
+        ],
+      },
+    ],
+  },
+
+  /* ================================
+     PROFESSIONAL / FINANCE
+  ================================= */
   {
     category: "Professional",
     themes: [
-      { id: 'barclays', name: 'Barclays Classic', colors: ['#00aeef', '#00395d', '#00a4e4', '#434343', '#ffffff'] },
-      { id: 'finance',  name: 'Finance Dark',     colors: ['#0f172a', '#334155', '#475569', '#64748b', '#94a3b8'] },
-    ]
-  }
+      {
+        id: "barclays",
+        name: "Barclays Classic",
+        colors: [
+          "#00AEEF",
+          "#00395D",
+          "#0077B6",
+          "#0096C7",
+          "#90E0EF",
+          "#FFFFFF",
+        ],
+      },
+      {
+        id: "finance_dark",
+        name: "Finance Dark",
+        colors: [
+          "#020617",
+          "#0F172A",
+          "#1E293B",
+          "#334155",
+          "#64748B",
+          "#94A3B8",
+        ],
+      },
+      {
+        id: "executive_gold",
+        name: "Executive Gold",
+        colors: [
+          "#1C1917",
+          "#44403C",
+          "#78716C",
+          "#D4AF37",
+          "#F5E6A8",
+          "#FAFAF9",
+        ],
+      },
+    ],
+  },
 ];
 
 const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
