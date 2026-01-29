@@ -1991,7 +1991,9 @@ const ModelDetail = () => {
                           {/* FIX: Removed pointer-events-none */}
                           <div className="w-full h-full select-none">
                             <ChartRenderer
-                              config={{ ...chartConfig, colors: [activeColor] }}
+                              // FIX: Pass the full config so the palette array (7 colors) is preserved
+                              config={chartConfig} 
+                              
                               data={sheetData.slice(1).map((row) => {
                                 const obj = {};
                                 sheetData[0].forEach(

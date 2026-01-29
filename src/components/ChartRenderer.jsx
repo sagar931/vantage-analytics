@@ -218,11 +218,24 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
       return acc;
     }, []).sort((a, b) => b.value - a.value);
 
-    // Assign distinct colors
+    // --- IMPROVED COLOR LOGIC ---
+    let activeColors = DISTINCT_COLORS; // Default to Rainbow
+    
+    if (config.colors && config.colors.length > 0) {
+       if (config.colors.length === 1) {
+          // Case A: Single Color Selected (e.g. from Widget Toolbar) -> Generate Shades
+          activeColors = getColorPalette(config.colors[0], pieData.length);
+       } else {
+          // Case B: Full Palette Selected (e.g. from Chart Builder) -> Use Palette
+          activeColors = config.colors;
+       }
+    }
+
     pieData.forEach((entry, index) => {
-      entry.fill = DISTINCT_COLORS[index % DISTINCT_COLORS.length];
+      entry.fill = activeColors[index % activeColors.length];
     });
 
+    
     const totalValue = pieData.reduce((sum, item) => sum + item.value, 0);
 
     return (
