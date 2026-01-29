@@ -73,14 +73,29 @@ export const STYLE_PRESETS = {
   },
 };
 
-export const getCellStyle = (cellValue, columnName, rowData, modelId, sheetName, manifest) => {
+export const getCellStyle = (cellValue, columnName, rowData, modelId, sheetName, manifest, currentFileName) => {
   const defaultStyle = { className: "", style: {} };
   if (!manifest) return defaultStyle;
 
   // 1. Check Model Specific Rules
   const sheetRules = manifest.conditional_formatting?.[modelId]?.[sheetName];
   if (sheetRules) {
-    const targetRules = sheetRules.filter(r => r.target_column === columnName);
+    const targetRules = sheetRules.filter(r => {
+      // A. Column Match
+      const colMatch = r.target_column === columnName;
+      
+      // B. Scope Match (New Logic)
+      // If rule has 'fileFilter', it MUST match currentFileName. 
+      // If rule has no 'fileFilter', it applies to ALL files (Global).
+      const scopeMatch = r.fileFilter ? r.fileFilter === currentFileName : true;
+      
+      // C. Exclusion Match (New Logic)
+      // If rule has 'exceptions' list, currentFileName must NOT be in it.
+      const notExcluded = r.exceptions ? !r.exceptions.includes(currentFileName) : true;
+
+      return colMatch && scopeMatch && notExcluded;
+    });
+
     for (const rule of targetRules) {
       const allConditionsMet = rule.conditions.every(cond => {
         const valueToCheck = cond.column ? rowData[cond.column] : cellValue;
@@ -88,18 +103,12 @@ export const getCellStyle = (cellValue, columnName, rowData, modelId, sheetName,
       });
 
       if (allConditionsMet) {
-        // MATCH FOUND: Check if it's a preset
-        if (STYLE_PRESETS[rule.style]) {
-          return STYLE_PRESETS[rule.style];
-        }
-        // If it's not a preset, it's a raw class. 
-        // Tailwind JIT might miss this, so this is the likely cause of your bug.
-        // We return it as className, but it might not render if not safelisted.
+        if (STYLE_PRESETS[rule.style]) return STYLE_PRESETS[rule.style];
         return { className: rule.style, style: {} };
       }
     }
   }
-
+  
   // 2. Global Rules
   if (manifest.global_rules) {
     const globalRule = manifest.global_rules.find(r => r.column_name === columnName);

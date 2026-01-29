@@ -97,22 +97,20 @@ export const FileSystemProvider = ({ children }) => {
     }
   };
 
-  // 5. Update Manifest & Trigger Auto-Save
-  const updateManifest = (modelId, sheetName, newRule) => {
+  // 5. Save Rules List (Add, Edit, or Delete)
+  // We now pass the ENTIRE array of rules for a sheet, not just one new rule.
+  const saveSheetRules = (modelId, sheetName, rulesArray) => {
     setManifest(prev => {
-      // Deep Copy
       const newManifest = JSON.parse(JSON.stringify(prev || { conditional_formatting: {} }));
       
       if (!newManifest.conditional_formatting) newManifest.conditional_formatting = {};
       if (!newManifest.conditional_formatting[modelId]) newManifest.conditional_formatting[modelId] = {};
-      if (!newManifest.conditional_formatting[modelId][sheetName]) newManifest.conditional_formatting[modelId][sheetName] = [];
       
-      // Add Rule
-      newManifest.conditional_formatting[modelId][sheetName].push(newRule);
+      // Overwrite the rules array for this sheet
+      newManifest.conditional_formatting[modelId][sheetName] = rulesArray;
       
       // TRIGGER SAVE TO DISK
       saveToDisk(newManifest, vlmHandle);
-      
       return newManifest;
     });
   };
@@ -197,7 +195,7 @@ export const FileSystemProvider = ({ children }) => {
       rootHandle, vlmHandle, folderName, models, isScanning, 
       connectDirectory, disconnect, 
       selectedModel, openModel, closeModel, 
-      manifest, selectVlmFile, createVlmFile, updateManifest,
+      manifest, selectVlmFile, createVlmFile, saveSheetRules,
       saveChart, updateChart, removeChart
     }}>
       {children}

@@ -428,7 +428,7 @@ const ModelDetail = () => {
     selectedModel,
     closeModel,
     manifest,
-    updateManifest,
+    saveSheetRules,
     saveChart,
     updateChart,
     removeChart,
@@ -1598,6 +1598,7 @@ const ModelDetail = () => {
                                     selectedModel.id,
                                     activeSheet,
                                     manifest,
+                                    activeFile?.originalName
                                   );
 
                                   // --- APPLY FORMATTING ---
@@ -1870,8 +1871,10 @@ const ModelDetail = () => {
               onClose={() => setIsRuleModalOpen(false)}
               columns={sheetData[0] || []}
               activeSheet={activeSheet}
-              onSave={(newRule) =>
-                updateManifest(selectedModel.id, activeSheet, newRule)
+              existingRules={manifest?.conditional_formatting?.[selectedModel.id]?.[activeSheet] || []} // Pass existing rules
+              currentFileName={activeFile?.originalName} // Pass current filename for scoping
+              onSave={(updatedRules) =>
+                saveSheetRules(selectedModel.id, activeSheet, updatedRules) // Use new save function
               }
             />
 
