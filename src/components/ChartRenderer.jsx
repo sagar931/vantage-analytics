@@ -262,6 +262,9 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
               }}
               labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem', fontSize: '12px' }}
+              
+              // FIX: Apply the same Excel Date Formatting to the Tooltip Header
+              labelFormatter={formatExcelDate}
             />
             
             <Legend wrapperStyle={{ paddingTop: '10px' }} iconType="circle" />
