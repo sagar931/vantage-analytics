@@ -10,13 +10,13 @@
       "status": "active",
       "failedAttempts": 0,
       "lockedUntil": null,
-      "lastLogin": "2026-01-29T05:53:26.828Z",
+      "lastLogin": "2026-01-29T06:22:27.566Z",
       "createdAt": "2026-01-29T05:12:45.220Z"
     }
   ],
   "securityPolicy": {
     "sessionTimeout": 28800,
-    "maxFailedAttempts": 3,
-    "lockoutDuration": 10800
+    "maxFailedAttempts": 5,
+    "lockoutDuration": 7200
   }
 }

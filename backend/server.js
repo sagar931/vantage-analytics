@@ -66,19 +66,27 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (!isMatch) {
         user.failedAttempts += 1;
+        const maxAttempts = db.securityPolicy.maxFailedAttempts;
+        const remaining = maxAttempts - user.failedAttempts;
         
         // Check if we need to lock
-        if (user.failedAttempts >= db.securityPolicy.maxFailedAttempts) {
+        if (user.failedAttempts >= maxAttempts) {
             const lockDuration = db.securityPolicy.lockoutDuration * 1000; // to ms
             user.lockedUntil = new Date(Date.now() + lockDuration).toISOString();
+            
+            // Calculate Lockout time in Hours/Minutes for friendly message
+            const hours = Math.floor(db.securityPolicy.lockoutDuration / 3600);
+            const minutes = Math.floor((db.securityPolicy.lockoutDuration % 3600) / 60);
+            const timeStr = hours > 0 ? `${hours} hours` : `${minutes} minutes`;
+
             db.users[userIndex] = user;
             saveDB(db);
-            return res.status(403).json({ error: "Too many failed attempts. Account locked for 3 hours." });
+            return res.status(403).json({ error: `Too many failed attempts. Account locked for ${timeStr}.` });
         }
 
         db.users[userIndex] = user;
         saveDB(db);
-        return res.status(401).json({ error: "Invalid credentials" });
+        return res.status(401).json({ error: `Invalid credentials. ${remaining} attempts remaining.` });
     }
 
     // 4. Success - Reset counters & Issue Token

@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ShieldCheck, Lock, ChevronRight, AlertCircle, Loader2, Mail, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import clsx from 'clsx';
 
 const LoginPage = () => {
   const { login, authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false); // Triggers the "Glow" animation
+  const [isSuccess, setIsSuccess] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,33 +22,23 @@ const LoginPage = () => {
     
     if (success) {
       setIsSuccess(true); 
-      // The parent component (App.jsx) will unmount this page when 'isAuthenticated' becomes true.
     } else {
       setIsSubmitting(false);
     }
   };
 
-  // --- EMAIL TEMPLATE GENERATOR ---
   const handleRequestAccess = () => {
-    const recipient = "sagar.mandal@barclays.com"; // Replace with real admin email
+    const recipient = "sagar.mandal@barclays.com"; 
     const subject = encodeURIComponent("Access Request: Vantage Analytics Platform");
-    const body = encodeURIComponent(
-`Dear Admin,
-
-I am requesting access to the Vantage Analytics Platform.
-
-**User Details:**
-- Name: [Your Name]
-- Department: [Your Department]
-- Barclays ID: [Your Email]
-
-**Justification:**
-[Please explain why you require access to this fraud monitoring system...]
-
-Regards,
-`
-    );
+    const body = encodeURIComponent(`Dear Admin,\n\nI am requesting access...`);
     window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+  };
+
+  // Helper to determine Logo Status Color
+  const getLogoStyles = () => {
+    if (isSuccess) return "bg-emerald-500/20 border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] scale-110";
+    if (authError) return "bg-red-500/20 border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.4)]";
+    return "bg-gradient-to-b from-slate-800 to-slate-900 border-slate-700 group-hover:scale-110";
   };
 
   return (
@@ -57,7 +48,6 @@ Regards,
       <div className="absolute inset-0 pointer-events-none">
          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse duration-[8s]" />
          <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[120px] animate-pulse duration-[10s]" />
-         {/* Grid Overlay */}
          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
       </div>
 
@@ -75,7 +65,6 @@ Regards,
 
       <div className="z-10 w-full max-w-[420px] p-6 relative">
         
-        {/* Card Container */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -85,10 +74,20 @@ Regards,
           {/* Top Sheen */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-50"></div>
 
-          {/* Header */}
+          {/* Header & Logo */}
           <div className="text-center mb-10">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center mb-6 border border-slate-700 shadow-inner group">
-               <img src="/barclays_logo.png" alt="B" className="h-8 w-auto brightness-0 invert opacity-90 group-hover:scale-110 transition-transform duration-500" />
+            <div className={clsx(
+               "mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border shadow-inner transition-all duration-500 group",
+               getLogoStyles()
+            )}>
+               <img 
+                 src="/barclays_logo.png" 
+                 alt="B" 
+                 className={clsx(
+                   "h-8 w-auto brightness-0 invert transition-all duration-500",
+                   isSuccess ? "opacity-100 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : "opacity-90"
+                 )} 
+               />
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Welcome Back</h1>
             <p className="text-slate-400 text-sm">Vantage Secure Analytics Gateway</p>
@@ -120,7 +119,10 @@ Regards,
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white text-sm outline-none focus:border-blue-500/50 focus:bg-slate-900/80 transition-all placeholder:text-slate-700 group-hover:border-slate-700"
+                  className={clsx(
+                    "w-full bg-slate-950/50 border rounded-xl px-4 py-3.5 text-white text-sm outline-none transition-all placeholder:text-slate-700",
+                    authError ? "border-red-500/50 focus:border-red-500" : "border-slate-800 focus:border-blue-500/50 focus:bg-slate-900/80"
+                  )}
                   placeholder="name@barclays.com"
                   required
                 />
@@ -137,7 +139,10 @@ Regards,
                   type="password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3.5 text-white text-sm outline-none focus:border-blue-500/50 focus:bg-slate-900/80 transition-all placeholder:text-slate-700 group-hover:border-slate-700"
+                  className={clsx(
+                    "w-full bg-slate-950/50 border rounded-xl px-4 py-3.5 text-white text-sm outline-none transition-all placeholder:text-slate-700",
+                    authError ? "border-red-500/50 focus:border-red-500" : "border-slate-800 focus:border-blue-500/50 focus:bg-slate-900/80"
+                  )}
                   placeholder="••••••••"
                   required
                 />
@@ -150,10 +155,15 @@ Regards,
             <button 
               type="submit" 
               disabled={isSubmitting || isSuccess}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden mt-4"
+              className={clsx(
+                "w-full font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden mt-4",
+                isSuccess 
+                  ? "bg-emerald-600 text-white shadow-emerald-900/20" 
+                  : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-blue-900/20"
+              )}
             >
               {/* Button Shine Effect */}
-              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
+              {!isSuccess && <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>}
               
               {isSubmitting ? (
                 <>
@@ -185,7 +195,7 @@ Regards,
              
              <div className="flex justify-center text-[10px] text-slate-600 font-mono">
                <span className="flex items-center gap-1.5">
-                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50"></span>
+                 <span className={clsx("w-1.5 h-1.5 rounded-full", isSuccess ? "bg-emerald-500 animate-pulse" : "bg-emerald-500/50")}></span>
                  System Secure • v2.1.0
                </span>
              </div>
