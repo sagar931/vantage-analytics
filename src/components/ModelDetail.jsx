@@ -5,6 +5,7 @@ import { getCellStyle } from "../utils/logicEngine";
 import RuleBuilder from "./RuleBuilder";
 import ChartBuilder from "./ChartBuilder";
 import ChartRenderer from "./ChartRenderer";
+import { useAuth } from '../context/AuthContext'; // Add this import
 import {
   ArrowLeft,
   Layers,
@@ -49,6 +50,7 @@ import {
   PieChart,
   Palette,
   RotateCcw,
+  LogOut
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -431,7 +433,8 @@ const ModelDetail = () => {
     updateChart,
     removeChart,
   } = useFileSystem();
-
+    
+  const { logout } = useAuth(); // Get logout function
   const canvasRef = useRef(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
   // Data State
@@ -929,6 +932,16 @@ const ModelDetail = () => {
               </div>
             );
           })}
+        </div>
+        {/* Sidebar Footer - Sign Out */}
+        <div className="p-4 border-t border-slate-800 bg-[#0b1121]">
+          <button 
+            onClick={logout}
+            className="w-full flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 px-4 py-3 rounded-xl transition-all text-sm font-bold group"
+          >
+             <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+             <span>Sign Out</span>
+          </button>
         </div>
       </div>
 
