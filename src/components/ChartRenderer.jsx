@@ -44,7 +44,7 @@ const formatExcelDate = (serial) => {
 
 // --- HELPER 3: PREMIUM CALLOUT LABELS (The "Spider Legs") ---
 const renderSmartLabel = (props) => {
-  const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, name, fill } = props;
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, name, fill, formatter } = props;
   const RADIAN = Math.PI / 180;
   
   // 1. Calculate positions
@@ -79,7 +79,7 @@ const renderSmartLabel = (props) => {
       
       {/* Value & Percent */}
       <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} textAnchor={textAnchor} fill="#e2e8f0" fontSize={11} fontWeight={700} dy={10}>
-        {`${(percent * 100).toFixed(0)}% (${value.toLocaleString()})`}
+        {`${(percent * 100).toFixed(0)}% (${formatter ? formatter(value) : value.toLocaleString()})`}
       </text>
     </g>
   );
@@ -264,7 +264,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
            {/* Center Text (Total) */}
            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</span>
-              <span className="text-3xl font-black text-white">{totalValue.toLocaleString()}</span>
+              <span className="text-3xl font-black text-white">{formatValue(totalValue)}</span>
            </div>
 
            <ResponsiveContainer width="100%" height="100%">
@@ -279,7 +279,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                  cornerRadius={6} // Rounded corners for premium feel
                  dataKey="value"
                  stroke="none"
-                 label={renderSmartLabel} // <--- THE CALLOUT LINES
+                 label={(props) => renderSmartLabel({ ...props, formatter: formatValue })}
                  labelLine={false} // We draw our own lines in renderSmartLabel
                >
                  {pieData.map((entry, index) => (
