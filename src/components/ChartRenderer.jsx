@@ -85,6 +85,7 @@ const renderSmartLabel = (props) => {
   );
 };
 
+
 // --- HELPER: PREMIUM TOOLTIP ---
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
@@ -121,6 +122,21 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
   }
 
   const { type, xAxis, dataKeys, threshold, colors = ['#3b82f6'], xAxisAngle = 0, showDataLabels = false } = config;
+
+  // --- HELPER: CURRENCY FORMATTER (Moved Inside) ---
+  const formatValue = (val) => {
+    if (val === null || val === undefined) return '';
+    // If no currency is selected, just use comma separators
+    if (!config.currency || config.currency === 'none') return val.toLocaleString();
+    
+    // Use Intl for robust currency formatting
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: config.currency,
+      maximumFractionDigits: 0, // Clean look (no cents) for charts
+      notation: val > 1000000 ? 'compact' : 'standard' // Smart compacting for huge numbers
+    }).format(val);
+  };
 
   const validDataKeys = (dataKeys || []).filter(key => 
     data.length > 0 && Object.prototype.hasOwnProperty.call(data[0], key)
@@ -316,7 +332,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               fontSize={11} 
               tickLine={false}
               axisLine={false}
-              tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
+              tickFormatter={formatValue}
             />
             <Tooltip 
               cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
@@ -329,6 +345,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
               }}
               itemStyle={{ color: '#e2e8f0' }} // <--- FIX: Forces value text to be light
               labelFormatter={formatExcelDate}
+              formatter={(value) => [formatValue(value), ""]}
             />
             <Legend 
               wrapperStyle={{ paddingTop: '10px' }} 
@@ -372,7 +389,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                         position="top" 
                         fill="#94a3b8" 
                         fontSize={10} 
-                        formatter={(val) => val?.toLocaleString()} 
+                        formatter={formatValue}
                       />
                     )}
                   </Bar>
@@ -401,7 +418,7 @@ const ChartRenderer = ({ config, data, onZoom, zoomDomain }) => {
                         offset={10}
                         fill="#94a3b8" 
                         fontSize={10} 
-                        formatter={(val) => val?.toLocaleString()} 
+                        formatter={formatValue}
                       />
                    )}
                 </DataComponent>

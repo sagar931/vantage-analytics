@@ -353,6 +353,15 @@ const EXTENDED_THEMES = [
   },
 ];
 
+const CURRENCY_OPTIONS = [
+  { id: 'none', label: 'Number (1,000)' },
+  { id: 'USD', label: 'USD ($)' },
+  { id: 'EUR', label: 'EUR (€)' },
+  { id: 'GBP', label: 'GBP (£)' },
+  { id: 'INR', label: 'INR (₹)' },
+  { id: 'JPY', label: 'JPY (¥)' },
+];
+
 const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
   const [title, setTitle] = useState('');
   const [type, setType] = useState('bar'); 
@@ -361,11 +370,12 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
   const [threshold, setThreshold] = useState(''); 
   const [xAxisAngle, setXAxisAngle] = useState(0);
   const [showDataLabels, setShowDataLabels] = useState(false);
-  
+
   // Color State
   const [selectedPaletteId, setSelectedPaletteId] = useState('default');
   const [customColors, setCustomColors] = useState(null); // Stores colors if chosen from library
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [currency, setCurrency] = useState('none');
 
   // Reset or Load state when opening
   useEffect(() => {
@@ -378,7 +388,8 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
         setThreshold(initialConfig.threshold || '');
         setXAxisAngle(initialConfig.xAxisAngle || 0);
         setShowDataLabels(initialConfig.showDataLabels || false);
-        
+        setCurrency(initialConfig.currency || 'none');
+
         // Restore Palette Logic
         if (initialConfig.colors && initialConfig.colors.length > 1) {
              // 1. Check Quick Palettes
@@ -448,6 +459,7 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
       threshold: threshold ? parseFloat(threshold) : null,
       colors: finalColors, 
       showDataLabels,
+      currency,
     };
     
     onSave(newChart);
@@ -620,16 +632,37 @@ const ChartBuilder = ({ isOpen, onClose, columns, onSave, initialConfig }) => {
 
              {/* SETTINGS GROUP: Data Labels & Threshold */}
              <div className="space-y-4">
-                {/* 1. DATA LABELS TOGGLE */}
+                {/* 1. DATA FORMATTING GROUP */}
                 {type !== 'table' && (
-                  <div className="flex items-center justify-between bg-slate-800 p-2 rounded-lg border border-slate-700">
-                    <span className="text-xs font-bold text-slate-400 uppercase ml-1">Show Data Values</span>
-                    <button
-                      onClick={() => setShowDataLabels(!showDataLabels)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showDataLabels ? 'bg-blue-600' : 'bg-slate-600'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showDataLabels ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
+                  <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 space-y-3">
+                    
+                    {/* Toggle: Show Labels */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Show Data Labels</span>
+                      <button
+                        onClick={() => setShowDataLabels(!showDataLabels)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showDataLabels ? 'bg-blue-600' : 'bg-slate-600'}`}
+                      >
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showDataLabels ? 'translate-x-5' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="h-px bg-slate-700/50"></div>
+
+                    {/* Dropdown: Currency */}
+                    <div>
+                       <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">Value Format</label>
+                       <select
+                          value={currency}
+                          onChange={(e) => setCurrency(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded px-2 py-1.5 focus:border-blue-500 outline-none"
+                       >
+                          {CURRENCY_OPTIONS.map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.label}</option>
+                          ))}
+                       </select>
+                    </div>
                   </div>
                 )}
 
