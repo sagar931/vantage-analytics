@@ -1343,7 +1343,8 @@ const ModelDetail = () => {
           <>
             {/* Toolbar */}
             {!isPresentationMode && (
-              <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end justify-between pt-2 relative z-50">
+              // FIX: Increased z-index to 65 so dropdowns sit ABOVE table headers (z-60) but BELOW top nav (z-70)
+              <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end justify-between pt-2 relative z-[65]">
                 {/* 1. SCROLLABLE TABS (Wrapped so they scroll without clipping the dropdowns) */}
                 <div className="flex items-end gap-1 overflow-x-auto custom-scrollbar flex-1 mr-4">
                   {workbookData?.sheetNames.map((sheet) => (
