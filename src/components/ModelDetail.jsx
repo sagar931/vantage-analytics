@@ -1738,37 +1738,43 @@ const ModelDetail = () => {
                 )}
 
                 {/* 2. CONTROL BAR (Tools & Filters) */}
-                <div className="px-4 py-1 flex items-center justify-between gap-4">
+                <div 
+                  className={clsx(
+                    "px-6 flex items-center justify-between gap-4 transition-all duration-300",
+                    // FIX: Add extra top/bottom padding in Charts mode since Tabs are hidden
+                    activeTab === "charts" ? "py-5" : "py-2"
+                  )}
+                >
                   {/* LEFT: CONTROLS */}
-                  <div className="flex items-center gap-2 text-slate-400">
-                    {/* A. View Toggles (Added mr-4 for spacing) */}
-                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 mr-4">
+                  <div className="flex items-center gap-4 text-slate-400">
+                    
+                    {/* A. View Toggles (PREMIUM REDESIGN) */}
+                    <div className="flex bg-slate-950 rounded-xl p-1.5 border border-slate-800/80 shadow-inner mr-2">
                       <button
                         onClick={() => setActiveTab("table")}
                         className={clsx(
-                          "p-1.5 rounded transition-all flex items-center gap-2 px-3", // Added px-3 & gap-2 for better hit area
+                          "px-5 py-2 rounded-lg flex items-center gap-2.5 transition-all duration-300 text-xs font-bold uppercase tracking-wider",
                           activeTab === "table"
-                            ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10"
-                            : "text-slate-400 hover:text-white",
+                            ? "bg-blue-600 text-white shadow-[0_2px_10px_rgba(37,99,235,0.3)]"
+                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-900"
                         )}
-                        title="Data"
+                        title="View Data Table"
                       >
-                        <Table className="w-4 h-4" />
-                        {/* Optional: Show label on larger screens if desired, or keep icon-only */}
-                        <span className="hidden lg:inline text-xs font-medium">Data</span>
+                        <Table className={clsx("w-4 h-4", activeTab === "table" ? "text-white" : "text-slate-500")} />
+                        <span>Data</span>
                       </button>
                       <button
                         onClick={() => setActiveTab("charts")}
                         className={clsx(
-                          "p-1.5 rounded transition-all flex items-center gap-2 px-3", // Added px-3 & gap-2
+                          "px-5 py-2 rounded-lg flex items-center gap-2.5 transition-all duration-300 text-xs font-bold uppercase tracking-wider",
                           activeTab === "charts"
-                            ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50"
-                            : "text-slate-400 hover:text-white",
+                            ? "bg-cyan-600 text-white shadow-[0_2px_10px_rgba(79,70,229,0.3)]"
+                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-900"
                         )}
-                        title="Viz"
+                        title="View Visualizations"
                       >
-                        <BarChart3 className="w-4 h-4" />
-                        <span className="hidden lg:inline text-xs font-medium">Viz</span>
+                        <BarChart3 className={clsx("w-4 h-4", activeTab === "charts" ? "text-white" : "text-slate-500")} />
+                        <span>Viz</span>
                       </button>
                     </div>
 
