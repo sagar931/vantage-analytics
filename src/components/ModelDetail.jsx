@@ -1741,31 +1741,34 @@ const ModelDetail = () => {
                 <div className="px-4 py-1 flex items-center justify-between gap-4">
                   {/* LEFT: CONTROLS */}
                   <div className="flex items-center gap-2 text-slate-400">
-                    {/* A. View Toggles */}
-                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                    {/* A. View Toggles (Added mr-4 for spacing) */}
+                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 mr-4">
                       <button
                         onClick={() => setActiveTab("table")}
                         className={clsx(
-                          "p-1.5 rounded transition-all",
+                          "p-1.5 rounded transition-all flex items-center gap-2 px-3", // Added px-3 & gap-2 for better hit area
                           activeTab === "table"
                             ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10"
                             : "text-slate-400 hover:text-white",
                         )}
-                        title="Data Table"
+                        title="Data"
                       >
                         <Table className="w-4 h-4" />
+                        {/* Optional: Show label on larger screens if desired, or keep icon-only */}
+                        <span className="hidden lg:inline text-xs font-medium">Data</span>
                       </button>
                       <button
                         onClick={() => setActiveTab("charts")}
                         className={clsx(
-                          "p-1.5 rounded transition-all",
+                          "p-1.5 rounded transition-all flex items-center gap-2 px-3", // Added px-3 & gap-2
                           activeTab === "charts"
                             ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50"
                             : "text-slate-400 hover:text-white",
                         )}
-                        title="Visual Charts"
+                        title="Viz"
                       >
                         <BarChart3 className="w-4 h-4" />
+                        <span className="hidden lg:inline text-xs font-medium">Viz</span>
                       </button>
                     </div>
 
