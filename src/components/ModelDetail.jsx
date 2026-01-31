@@ -788,7 +788,7 @@ const ModelDetail = () => {
 
     return [headers, ...rows];
   }, [sheetData, sortConfig, globalFilters]);
-  
+
   const toggleCompactMode = (colIndex) => {
     setCompactColumns((prev) =>
       prev.includes(colIndex)
@@ -1024,6 +1024,46 @@ const ModelDetail = () => {
 
   return (
     <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative selection:bg-blue-500/30">
+
+      {/* --- TASK 1: PREMIUM SCROLLBAR STYLES --- */}
+      <style>{`
+        /* 1. Base Dimensions */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        
+        /* 2. Track (Invisible) */
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        /* 3. Thumb (The Handle) */
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(51, 65, 85, 0.5); /* Slate-700 with opacity */
+          border-radius: 10px;
+          backdrop-filter: blur(4px);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* 4. Hover State (Slightly brighter) */
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(71, 85, 105, 0.8); /* Slate-600 */
+        }
+
+        /* 5. Active State (THE GLOW EFFECT) */
+        .custom-scrollbar::-webkit-scrollbar-thumb:active {
+          background: #3b82f6; /* Blue-500 */
+          box-shadow: 0 0 12px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.4);
+          border-color: #60a5fa;
+        }
+
+        /* 6. Corner */
+        .custom-scrollbar::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+      `}</style>
+      
       {/* 1. CINEMATIC SIDEBAR (Parallax Slide Animation) */}
       <div
         // FIX: Added 'overflow-hidden' to mask the fixed-width inner content when collapsed
