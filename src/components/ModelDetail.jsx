@@ -480,21 +480,28 @@ const ModelDetail = () => {
     type: "string",
   });
 
-  // --- HELPER: ROBUST TYPE DETECTION (Scans first 5 rows) ---
+  // --- HELPER: ROBUST TYPE DETECTION ---
   const getColumnType = (colName, data) => {
     if (!data || data.length < 2) return "string";
     const colIdx = data[0].indexOf(colName);
     if (colIdx === -1) return "string";
 
-    // Scan up to 5 non-empty rows to determine type
-    for (let i = 1; i < Math.min(data.length, 6); i++) {
+    // Heuristic: Check header for date keywords
+    const isDateHeader = /date|time|period|year|mon/i.test(colName);
+
+    // Scan up to 6 rows
+    for (let i = 1; i < Math.min(data.length, 7); i++) {
       const val = data[i][colIdx];
       if (val !== null && val !== undefined && val !== "") {
+        // Detect Excel Serial Date (e.g., 45321)
+        if (typeof val === 'number' && val > 30000 && val < 60000 && isDateHeader) {
+            return 'date';
+        }
         if (!isNaN(Number(val)) && typeof val !== "boolean") return "numeric";
         if (!isNaN(Date.parse(val)) && String(val).includes("-")) return "date";
       }
     }
-    return "string"; // Default
+    return "string"; 
   };
 
   // Helper: Get Unique Values for a Column (for Dropdown)
@@ -512,17 +519,60 @@ const ModelDetail = () => {
 
   // --- HELPER: ROBUST FILTER ENGINE ---
   const checkFilterCondition = (rowValue, operator, filterValue, type) => {
-    // 1. Safe Value Extraction
-    const safeRowVal =
-      rowValue === null || rowValue === undefined ? "" : rowValue;
-    const safeFilterVal =
-      filterValue === null || filterValue === undefined
-        ? ""
-        : String(filterValue).trim();
+    const safeRowVal = rowValue === null || rowValue === undefined ? "" : rowValue;
+    const safeFilterVal = filterValue === null || filterValue === undefined ? "" : String(filterValue).trim();
 
-    // 2. Numeric/Date Comparison
-    if (type === "numeric" || type === "date") {
-      // Remove currency symbols/commas for robust number parsing
+    // --- DATE HANDLING (Excel Serial & Standard) ---
+    if (type === "date") {
+        let rowDate = null;
+        
+        // A. Handle Excel Serial Number (e.g. 45321)
+        if (typeof rowValue === 'number') {
+            rowDate = new Date(Math.round((rowValue - 25569) * 86400 * 1000));
+        } 
+        // B. Handle Standard Date String
+        else if (typeof rowValue === 'string') {
+            rowDate = new Date(rowValue);
+        }
+
+        if (rowDate && !isNaN(rowDate.getTime())) {
+            // 1. Text-based matching (e.g., User types "Jan 25")
+            // We check against multiple formats to be friendly
+            if (operator === 'contains' || operator === '==') {
+                const dateStrShort = rowDate.toLocaleDateString("en-US", { month: "short", year: "2-digit" }); // "Jan 25"
+                const dateStrFull = rowDate.toLocaleDateString("en-US"); // "1/31/2026"
+                const dateStrISO = rowDate.toISOString().split('T')[0]; // "2026-01-31"
+                
+                const filterLower = safeFilterVal.toLowerCase();
+                
+                if (dateStrShort.toLowerCase().includes(filterLower)) return true;
+                if (dateStrFull.toLowerCase().includes(filterLower)) return true;
+                if (dateStrISO.includes(filterLower)) return true;
+            }
+
+            // 2. Logic-based comparison (>, <, >=)
+            // Try parsing the user input as a date
+            const filterDate = new Date(safeFilterVal);
+            if (!isNaN(filterDate.getTime())) {
+                // Normalize to midnight for accurate comparison
+                const rTime = new Date(rowDate).setHours(0,0,0,0);
+                const fTime = new Date(filterDate).setHours(0,0,0,0);
+
+                switch (operator) {
+                    case ">": return rTime > fTime;
+                    case "<": return rTime < fTime;
+                    case ">=": return rTime >= fTime;
+                    case "<=": return rTime <= fTime;
+                    case "==": return rTime === fTime;
+                    case "!=": return rTime !== fTime;
+                }
+            }
+        }
+    }
+
+    // --- NUMERIC HANDLING ---
+    if (type === "numeric") {
+      // Remove currency symbols/commas
       const cleanRowStr = String(safeRowVal).replace(/[€$£,]/g, "");
       const numRow = Number(cleanRowStr);
       const numFilter = Number(safeFilterVal);
@@ -530,40 +580,27 @@ const ModelDetail = () => {
       if (isNaN(numRow) || isNaN(numFilter)) return false;
 
       switch (operator) {
-        case ">":
-          return numRow > numFilter;
-        case "<":
-          return numRow < numFilter;
-        case ">=":
-          return numRow >= numFilter;
-        case "<=":
-          return numRow <= numFilter;
-        case "==":
-          return Math.abs(numRow - numFilter) < 0.001; // Float safety
-        case "!=":
-          return Math.abs(numRow - numFilter) > 0.001;
-        default:
-          return true;
+        case ">": return numRow > numFilter;
+        case "<": return numRow < numFilter;
+        case ">=": return numRow >= numFilter;
+        case "<=": return numRow <= numFilter;
+        case "==": return Math.abs(numRow - numFilter) < 0.001;
+        case "!=": return Math.abs(numRow - numFilter) > 0.001;
+        default: return true;
       }
     }
 
-    // 3. String Comparison (Case Insensitive)
+    // --- STRING HANDLING ---
     const strRow = String(safeRowVal).toLowerCase().trim();
     const strFilter = safeFilterVal.toLowerCase();
 
     switch (operator) {
-      case "contains":
-        return strRow.includes(strFilter);
-      case "==":
-        return strRow === strFilter;
-      case "!=":
-        return strRow !== strFilter;
-      case "starts":
-        return strRow.startsWith(strFilter);
-      case "ends":
-        return strRow.endsWith(strFilter);
-      default:
-        return true;
+      case "contains": return strRow.includes(strFilter);
+      case "==": return strRow === strFilter;
+      case "!=": return strRow !== strFilter;
+      case "starts": return strRow.startsWith(strFilter);
+      case "ends": return strRow.endsWith(strFilter);
+      default: return true;
     }
   };
 
