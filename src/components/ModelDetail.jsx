@@ -150,8 +150,24 @@ const getTrendDelta = (
   if (prevColIndex === -1) return null;
 
   // 4. Find Matching Row (Using Key in Column 0)
+  // 4. Find Matching Row (Smart Composite Key)
+  // FIX: If the first column (e.g. Date) repeats, we must also check the second column (e.g. Band) to find the unique row.
   const rowKey = currentRow[0];
-  const prevRow = comparisonData.find((r) => r[0] === rowKey);
+  const secondaryKey = currentRow[1];
+
+  const prevRow = comparisonData.find((r) => {
+    // A. Match Primary Key (Col 0)
+    if (r[0] !== rowKey) return false;
+
+    // B. Match Secondary Key (Col 1) - ONLY if it acts like a Label (String)
+    // If Col 1 is a number, it's likely a metric (Amount, %) so we don't match it.
+    // If Col 1 is a string (e.g. "Band 1", "North"), it's likely a dimension, so we MUST match it to get the right row.
+    if (typeof secondaryKey === "string" && typeof r[1] === "string") {
+      return r[1] === secondaryKey;
+    }
+
+    return true;
+  });
 
   if (!prevRow) return null;
 
@@ -2439,7 +2455,7 @@ const ModelDetail = () => {
                                           {/* The Main Value */}
                                           <span>{formattedValue}</span>
 
-                                          {/* --- TREND INDICATOR (With Mapping) --- */}
+                                          {/* --- TREND INDICATOR (Smart Logic) --- */}
                                           {isComparing &&
                                             (() => {
                                               const trend = getTrendDelta(
@@ -2452,16 +2468,31 @@ const ModelDetail = () => {
                                               );
                                               if (!trend) return null;
 
-                                              const isUp =
-                                                trend.direction === "up";
+                                              const isUp = trend.direction === "up";
+                                              const colLower = columnName.toLowerCase();
+
+                                              // 1. DEFINE "BAD" METRICS (Increase = RED)
+                                              // Metrics where growth is negative for the business
+                                              const isNegativeMetric = /psi|risk|fraud|error|default|pd|lgd|ead|churn|dropout|bad|loss|delinquency|ar|par/i.test(colLower);
+
+                                              // 2. DEFINE "GOOD" METRICS (Increase = GREEN)
+                                              // Metrics where growth is positive (Performance or Volume)
+                                              // Note: 'Score' is tricky. 'Risk Score' matches line 1. 'Credit Score' matches line 2.
+                                              // The logic prioritizes 'isNegativeMetric' check first if it contains "risk".
+                                              const isPositiveMetric = /gini|ks|auc|accuracy|precision|recall|f1|auth|volume|amount|sales|profit|revenue|score|approval|limit|recovery/i.test(colLower);
+
+                                              // 3. DETERMINE COLOR
+                                              // If it's a known Negative metric, UP is BAD.
+                                              // Otherwise, we default to UP is GOOD (Standard growth).
+                                              const isGood = isNegativeMetric ? !isUp : isUp;
 
                                               return (
                                                 <span
                                                   className={clsx(
                                                     "text-[10px] font-bold flex items-center ml-1",
-                                                    isUp
-                                                      ? "text-red-400"
-                                                      : "text-emerald-400",
+                                                    isGood
+                                                      ? "text-emerald-400" // Good
+                                                      : "text-red-400",    // Bad
                                                   )}
                                                 >
                                                   {isUp ? "↑" : "↓"}
