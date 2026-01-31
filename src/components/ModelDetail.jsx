@@ -1748,32 +1748,42 @@ const ModelDetail = () => {
                   {/* LEFT: CONTROLS */}
                   <div className="flex items-center gap-4 text-slate-400">
                     
-                    {/* A. View Toggles (PREMIUM REDESIGN) */}
-                    <div className="flex bg-slate-950 rounded-xl p-1.5 border border-slate-800/80 shadow-inner mr-2">
+                    {/* A. View Toggles (PREMIUM SMOOTH SLIDER) */}
+                    {/* Container: Fixed width for perfect sliding symmetry */}
+                    <div className="relative flex items-center bg-slate-950 rounded-xl p-1 border border-slate-800/80 shadow-inner w-[220px] h-10 select-none">
+                      
+                      {/* 1. THE SLIDING PILL (Background) */}
+                      <div
+                        className={clsx(
+                          "absolute top-1 bottom-1 rounded-lg shadow-lg transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]", // Premium 'Spring' ease
+                          "w-[calc(50%-4px)]", // Exact half width minus padding
+                          activeTab === "table" 
+                            ? "left-1 bg-emerald-600 shadow-blue-500/20" 
+                            : "left-[calc(50%+4px)] bg-cyan-600 shadow-violet-500/20" // <--- CHANGED TO VIOLET HERE
+                        )}
+                      />
+
+                      {/* 2. DATA BUTTON (Foreground Text) */}
                       <button
                         onClick={() => setActiveTab("table")}
                         className={clsx(
-                          "px-5 py-2 rounded-lg flex items-center gap-2.5 transition-all duration-300 text-xs font-bold uppercase tracking-wider",
-                          activeTab === "table"
-                            ? "bg-blue-600 text-white shadow-[0_2px_10px_rgba(37,99,235,0.3)]"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-900"
+                          "flex-1 relative z-10 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider transition-colors duration-300",
+                          activeTab === "table" ? "text-white" : "text-slate-500 hover:text-slate-300"
                         )}
-                        title="View Data Table"
                       >
-                        <Table className={clsx("w-4 h-4", activeTab === "table" ? "text-white" : "text-slate-500")} />
+                        <Table className={clsx("w-3.5 h-3.5", activeTab === "table" ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
                         <span>Data</span>
                       </button>
+
+                      {/* 3. VIZ BUTTON (Foreground Text) */}
                       <button
                         onClick={() => setActiveTab("charts")}
                         className={clsx(
-                          "px-5 py-2 rounded-lg flex items-center gap-2.5 transition-all duration-300 text-xs font-bold uppercase tracking-wider",
-                          activeTab === "charts"
-                            ? "bg-cyan-600 text-white shadow-[0_2px_10px_rgba(79,70,229,0.3)]"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-900"
+                          "flex-1 relative z-10 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider transition-colors duration-300",
+                          activeTab === "charts" ? "text-white" : "text-slate-500 hover:text-slate-300"
                         )}
-                        title="View Visualizations"
                       >
-                        <BarChart3 className={clsx("w-4 h-4", activeTab === "charts" ? "text-white" : "text-slate-500")} />
+                        <BarChart3 className={clsx("w-3.5 h-3.5", activeTab === "charts" ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
                         <span>Viz</span>
                       </button>
                     </div>
