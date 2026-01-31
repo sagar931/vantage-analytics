@@ -5,7 +5,7 @@ import { getCellStyle } from "../utils/logicEngine";
 import RuleBuilder from "./RuleBuilder";
 import ChartBuilder from "./ChartBuilder";
 import ChartRenderer from "./ChartRenderer";
-import { useAuth } from '../context/AuthContext'; // Add this import
+import { useAuth } from "../context/AuthContext"; // Add this import
 import {
   ArrowLeft,
   Layers,
@@ -18,6 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   MonitorPlay,
+  X,
+  Plus,
+  Type,
   ZoomIn,
   ZoomOut,
   Minimize2,
@@ -51,7 +54,11 @@ import {
   Palette,
   RotateCcw,
   LogOut,
-  Sun, Moon, ChevronDown, User,Menu
+  Sun,
+  Moon,
+  ChevronDown,
+  User,
+  Menu,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -234,7 +241,7 @@ const DraggableWidget = ({
     );
     const h = Math.max(
       1,
-      
+
       Math.round((pxRect.h + GRID_MARGIN) / (ROW_HEIGHT + GRID_MARGIN)),
     );
 
@@ -388,13 +395,13 @@ const DraggableWidget = ({
 
             {/* Edit Button */}
             {onEdit && (
-               <button 
-                 onClick={onEdit}
-                 className="text-slate-500 hover:text-blue-400 p-1 rounded hover:bg-slate-700 transition-colors"
-                 title="Edit Chart Configuration"
-               >
-                 <Edit3 className="w-3 h-3" />
-               </button>
+              <button
+                onClick={onEdit}
+                className="text-slate-500 hover:text-blue-400 p-1 rounded hover:bg-slate-700 transition-colors"
+                title="Edit Chart Configuration"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
             )}
 
             {onDelete && (
@@ -449,7 +456,7 @@ const ModelDetail = () => {
     removeChart,
   } = useFileSystem();
 
-  const [editingChartIndex, setEditingChartIndex] = useState(null);  
+  const [editingChartIndex, setEditingChartIndex] = useState(null);
   const { user, logout, theme, setTheme } = useAuth();
   const canvasRef = useRef(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -459,6 +466,106 @@ const ModelDetail = () => {
   const [activeSheet, setActiveSheet] = useState(null);
   const [sheetData, setSheetData] = useState([]);
   const [sheetMerges, setSheetMerges] = useState([]);
+
+  const [parsedData, setParsedData] = useState(null);
+
+  // --- NEW: GLOBAL FILTER ENGINE ---
+  const [globalFilters, setGlobalFilters] = useState([]);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+  // NEW: Advanced Filter Modal State
+  const [filterModal, setFilterModal] = useState({
+    isOpen: false,
+    column: null,
+    type: "string",
+  });
+
+  // --- HELPER: ROBUST TYPE DETECTION (Scans first 5 rows) ---
+  const getColumnType = (colName, data) => {
+    if (!data || data.length < 2) return "string";
+    const colIdx = data[0].indexOf(colName);
+    if (colIdx === -1) return "string";
+
+    // Scan up to 5 non-empty rows to determine type
+    for (let i = 1; i < Math.min(data.length, 6); i++) {
+      const val = data[i][colIdx];
+      if (val !== null && val !== undefined && val !== "") {
+        if (!isNaN(Number(val)) && typeof val !== "boolean") return "numeric";
+        if (!isNaN(Date.parse(val)) && String(val).includes("-")) return "date";
+      }
+    }
+    return "string"; // Default
+  };
+
+  // Helper: Get Unique Values for a Column (for Dropdown)
+  const getUniqueValues = (colName) => {
+    if (!sheetData || sheetData.length < 2) return [];
+    const colIdx = sheetData[0].indexOf(colName);
+    if (colIdx === -1) return [];
+
+    const values = new Set();
+    sheetData.slice(1).forEach((row) => {
+      if (row[colIdx]) values.add(String(row[colIdx]));
+    });
+    return Array.from(values).sort().slice(0, 50); // Limit to 50 for UI
+  };
+
+  // --- HELPER: ROBUST FILTER ENGINE ---
+  const checkFilterCondition = (rowValue, operator, filterValue, type) => {
+    // 1. Safe Value Extraction
+    const safeRowVal =
+      rowValue === null || rowValue === undefined ? "" : rowValue;
+    const safeFilterVal =
+      filterValue === null || filterValue === undefined
+        ? ""
+        : String(filterValue).trim();
+
+    // 2. Numeric/Date Comparison
+    if (type === "numeric" || type === "date") {
+      // Remove currency symbols/commas for robust number parsing
+      const cleanRowStr = String(safeRowVal).replace(/[€$£,]/g, "");
+      const numRow = Number(cleanRowStr);
+      const numFilter = Number(safeFilterVal);
+
+      if (isNaN(numRow) || isNaN(numFilter)) return false;
+
+      switch (operator) {
+        case ">":
+          return numRow > numFilter;
+        case "<":
+          return numRow < numFilter;
+        case ">=":
+          return numRow >= numFilter;
+        case "<=":
+          return numRow <= numFilter;
+        case "==":
+          return Math.abs(numRow - numFilter) < 0.001; // Float safety
+        case "!=":
+          return Math.abs(numRow - numFilter) > 0.001;
+        default:
+          return true;
+      }
+    }
+
+    // 3. String Comparison (Case Insensitive)
+    const strRow = String(safeRowVal).toLowerCase().trim();
+    const strFilter = safeFilterVal.toLowerCase();
+
+    switch (operator) {
+      case "contains":
+        return strRow.includes(strFilter);
+      case "==":
+        return strRow === strFilter;
+      case "!=":
+        return strRow !== strFilter;
+      case "starts":
+        return strRow.startsWith(strFilter);
+      case "ends":
+        return strRow.endsWith(strFilter);
+      default:
+        return true;
+    }
+  };
 
   // --- NEW: TREND ANALYSIS STATE ---
   const [comparisonFile, setComparisonFile] = useState(null);
@@ -508,20 +615,21 @@ const ModelDetail = () => {
         setViewMode("compact");
       }
     };
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
   }, []);
 
- // Auto-expand the most recent year on load
+  // Auto-expand the most recent year on load
   useEffect(() => {
     const years = Object.keys(filesByYear).sort().reverse();
     if (years.length > 0) {
-      setExpandedGroups(prev => ({ ...prev, [years[0]]: true }));
+      setExpandedGroups((prev) => ({ ...prev, [years[0]]: true }));
     }
   }, [selectedModel]);
 
   const toggleGroup = (key) => {
-    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   // --- HELPER: FIND PREVIOUS FILE (AUTO-DISCOVERY) ---
@@ -832,27 +940,38 @@ const ModelDetail = () => {
 
   return (
     <div className="h-screen w-full flex bg-slate-950 text-white overflow-hidden font-sans relative selection:bg-blue-500/30">
-      
       {/* 1. CINEMATIC SIDEBAR (Parallax Slide Animation) */}
-      <div 
+      <div
         // FIX: Added 'overflow-hidden' to mask the fixed-width inner content when collapsed
         className="relative flex-shrink-0 z-40 h-full transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] overflow-hidden"
         style={{ width: isSidebarCollapsed ? 0 : 320 }}
       >
         <div className="absolute inset-0 bg-[#0b1121] border-r border-slate-800 flex flex-col overflow-hidden w-[320px]">
-          
           {/* Brand Header */}
           <div className="h-20 flex items-center px-6 border-b border-slate-800/50 bg-[#0b1121] whitespace-nowrap shrink-0 relative">
-            <div className={clsx("flex items-center gap-3 transition-opacity duration-300", isSidebarCollapsed ? "opacity-0" : "opacity-100")}>
-               <img src="/barclays_logo.png" alt="Barclays" className="h-9 w-auto object-contain brightness-110" />
-               <div className="flex flex-col">
-                 <span className="font-bold tracking-tight text-xl text-white leading-none">BARCLAYS</span>
-                 <span className="text-[9px] font-bold text-blue-500 tracking-[0.2em] uppercase mt-1">Fraud Analytics</span>
-               </div>
+            <div
+              className={clsx(
+                "flex items-center gap-3 transition-opacity duration-300",
+                isSidebarCollapsed ? "opacity-0" : "opacity-100",
+              )}
+            >
+              <img
+                src="/barclays_logo.png"
+                alt="Barclays"
+                className="h-9 w-auto object-contain brightness-110"
+              />
+              <div className="flex flex-col">
+                <span className="font-bold tracking-tight text-xl text-white leading-none">
+                  BARCLAYS
+                </span>
+                <span className="text-[9px] font-bold text-blue-500 tracking-[0.2em] uppercase mt-1">
+                  Fraud Analytics
+                </span>
+              </div>
             </div>
-            
+
             {/* Collapse Icon (Hidden inside header) */}
-            <button 
+            <button
               onClick={() => setIsSidebarCollapsed(true)}
               className="absolute right-4 p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
             >
@@ -861,162 +980,257 @@ const ModelDetail = () => {
           </div>
 
           {/* Navigation & Info */}
-          <div className={clsx("p-5 space-y-4 shrink-0 transition-all duration-500 delay-75", isSidebarCollapsed ? "opacity-0 -translate-x-4" : "opacity-100 translate-x-0")}>
-             <button onClick={closeModel} className="group w-full flex items-center gap-3 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-slate-700/50 hover:border-slate-600 hover:shadow-lg shadow-black/20">
-               <div className="bg-slate-700 p-1.5 rounded-lg group-hover:bg-blue-600 transition-colors shadow-inner">
-                 <ArrowLeft className="w-4 h-4 text-white" />
-               </div>
-               Return to Grid
+          <div
+            className={clsx(
+              "p-5 space-y-4 shrink-0 transition-all duration-500 delay-75",
+              isSidebarCollapsed
+                ? "opacity-0 -translate-x-4"
+                : "opacity-100 translate-x-0",
+            )}
+          >
+            <button
+              onClick={closeModel}
+              className="group w-full flex items-center gap-3 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl transition-all text-sm font-medium border border-slate-700/50 hover:border-slate-600 hover:shadow-lg shadow-black/20"
+            >
+              <div className="bg-slate-700 p-1.5 rounded-lg group-hover:bg-blue-600 transition-colors shadow-inner">
+                <ArrowLeft className="w-4 h-4 text-white" />
+              </div>
+              Return to Grid
             </button>
 
             <div className="px-1">
-              <h2 className="text-xl font-bold text-white leading-tight tracking-tight">{selectedModel.name.replace(/_/g, ' ')}</h2>
+              <h2 className="text-xl font-bold text-white leading-tight tracking-tight">
+                {selectedModel.name.replace(/_/g, " ")}
+              </h2>
               <div className="flex items-center gap-2 mt-2">
-                 <div className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                 </div>
-                 <span className="text-xs font-mono text-slate-500 uppercase tracking-widest font-semibold">ID: {selectedModel.id}</span>
+                <div className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </div>
+                <span className="text-xs font-mono text-slate-500 uppercase tracking-widest font-semibold">
+                  ID: {selectedModel.id}
+                </span>
               </div>
             </div>
           </div>
 
           {/* File List (Scrollable Area) */}
-          <div className={clsx("flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar transition-all duration-500 delay-100", isSidebarCollapsed ? "opacity-0" : "opacity-100")}>
+          <div
+            className={clsx(
+              "flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar transition-all duration-500 delay-100",
+              isSidebarCollapsed ? "opacity-0" : "opacity-100",
+            )}
+          >
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-2 mt-2 flex items-center gap-2">
-               <History className="w-3 h-3" /> Historical Data
+              <History className="w-3 h-3" /> Historical Data
             </div>
-            
+
             {/* --- EXISTING FILE LIST LOGIC PRESERVED --- */}
-            {Object.keys(filesByYear).sort().reverse().map(year => {
-            // 1. Group files by Quarter (Q1-Q4) and Special (Q5/Q6/Agg)
-            const groups = { Specials: [], Q4: [], Q3: [], Q2: [], Q1: [] };
-            
-            filesByYear[year].forEach(file => {
-               const p = file.period;
-               // Detect "Special" quarters (Q5, Q6, etc.) or Aggregates
-               if (/Q[5-9]/i.test(p) || /Agg/i.test(p) || /Year/i.test(p)) {
-                   groups.Specials.push(file);
-               }
-               else if (p.includes('Q4') || /Oct|Nov|Dec/i.test(p)) groups.Q4.push(file);
-               else if (p.includes('Q3') || /Jul|Aug|Sep/i.test(p)) groups.Q3.push(file);
-               else if (p.includes('Q2') || /Apr|May|Jun/i.test(p)) groups.Q2.push(file);
-               else groups.Q1.push(file); // Default to Q1 for Jan/Feb/Mar or catch-all
-            });
+            {Object.keys(filesByYear)
+              .sort()
+              .reverse()
+              .map((year) => {
+                // 1. Group files by Quarter (Q1-Q4) and Special (Q5/Q6/Agg)
+                const groups = { Specials: [], Q4: [], Q3: [], Q2: [], Q1: [] };
 
-            // Define display order and labels
-            const displayGroups = [
-                { key: 'Specials', label: 'Summary & Reports', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
-                { key: 'Q4', label: 'Q4 (Oct - Dec)', icon: <div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> },
-                { key: 'Q3', label: 'Q3 (Jul - Sep)', icon: <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> },
-                { key: 'Q2', label: 'Q2 (Apr - Jun)', icon: <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> },
-                { key: 'Q1', label: 'Q1 (Jan - Mar)', icon: <div className="w-1.5 h-1.5 rounded-full bg-amber-500" /> },
-            ].filter(g => groups[g.key].length > 0);
+                filesByYear[year].forEach((file) => {
+                  const p = file.period;
+                  // Detect "Special" quarters (Q5, Q6, etc.) or Aggregates
+                  if (/Q[5-9]/i.test(p) || /Agg/i.test(p) || /Year/i.test(p)) {
+                    groups.Specials.push(file);
+                  } else if (p.includes("Q4") || /Oct|Nov|Dec/i.test(p))
+                    groups.Q4.push(file);
+                  else if (p.includes("Q3") || /Jul|Aug|Sep/i.test(p))
+                    groups.Q3.push(file);
+                  else if (p.includes("Q2") || /Apr|May|Jun/i.test(p))
+                    groups.Q2.push(file);
+                  else groups.Q1.push(file); // Default to Q1 for Jan/Feb/Mar or catch-all
+                });
 
-            return (
-              <div key={year} className="mb-3">
-                {/* LEVEL 1: YEAR TOGGLE */}
-                <button 
-                  onClick={() => toggleGroup(year)}
-                  className="w-full flex items-center justify-between px-3 py-3 text-sm font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-all group border border-transparent hover:border-slate-700"
-                >
-                   <span className="flex items-center gap-3">
-                      <Calendar className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors" />
-                      {year}
-                   </span>
-                   <ChevronRight className={clsx("w-4 h-4 transition-transform duration-300", expandedGroups[year] ? "rotate-90 text-white" : "text-slate-600")} />
-                </button>
+                // Define display order and labels
+                const displayGroups = [
+                  {
+                    key: "Specials",
+                    label: "Summary & Reports",
+                    icon: <FileSpreadsheet className="w-3.5 h-3.5" />,
+                  },
+                  {
+                    key: "Q4",
+                    label: "Q4 (Oct - Dec)",
+                    icon: (
+                      <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    ),
+                  },
+                  {
+                    key: "Q3",
+                    label: "Q3 (Jul - Sep)",
+                    icon: (
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    ),
+                  },
+                  {
+                    key: "Q2",
+                    label: "Q2 (Apr - Jun)",
+                    icon: (
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    ),
+                  },
+                  {
+                    key: "Q1",
+                    label: "Q1 (Jan - Mar)",
+                    icon: (
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    ),
+                  },
+                ].filter((g) => groups[g.key].length > 0);
 
-                {/* LEVEL 2: QUARTER LIST (Animated) */}
-                <div className={clsx("overflow-hidden transition-all duration-500 ease-in-out", expandedGroups[year] ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0")}>
-                  <div className="pt-1 pb-2 pl-3 space-y-1 relative">
-                    {/* Vertical connector line */}
-                    <div className="absolute left-[22px] top-0 bottom-4 w-px bg-slate-800"></div>
+                return (
+                  <div key={year} className="mb-3">
+                    {/* LEVEL 1: YEAR TOGGLE */}
+                    <button
+                      onClick={() => toggleGroup(year)}
+                      className="w-full flex items-center justify-between px-3 py-3 text-sm font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-all group border border-transparent hover:border-slate-700"
+                    >
+                      <span className="flex items-center gap-3">
+                        <Calendar className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors" />
+                        {year}
+                      </span>
+                      <ChevronRight
+                        className={clsx(
+                          "w-4 h-4 transition-transform duration-300",
+                          expandedGroups[year]
+                            ? "rotate-90 text-white"
+                            : "text-slate-600",
+                        )}
+                      />
+                    </button>
 
-                    {displayGroups.map(group => {
-                       const groupKey = `${year}-${group.key}`; // Unique ID for state
-                       const isGroupExpanded = expandedGroups[groupKey];
+                    {/* LEVEL 2: QUARTER LIST (Animated) */}
+                    <div
+                      className={clsx(
+                        "overflow-hidden transition-all duration-500 ease-in-out",
+                        expandedGroups[year]
+                          ? "max-h-[1200px] opacity-100"
+                          : "max-h-0 opacity-0",
+                      )}
+                    >
+                      <div className="pt-1 pb-2 pl-3 space-y-1 relative">
+                        {/* Vertical connector line */}
+                        <div className="absolute left-[22px] top-0 bottom-4 w-px bg-slate-800"></div>
 
-                       return (
-                         <div key={groupKey} className="relative pl-6 pt-1">
-                            {/* Horizontal connector */}
-                            <div className="absolute left-0 top-[18px] w-4 h-px bg-slate-800"></div>
+                        {displayGroups.map((group) => {
+                          const groupKey = `${year}-${group.key}`; // Unique ID for state
+                          const isGroupExpanded = expandedGroups[groupKey];
 
-                            {/* QUARTER TOGGLE */}
-                            <button 
+                          return (
+                            <div key={groupKey} className="relative pl-6 pt-1">
+                              {/* Horizontal connector */}
+                              <div className="absolute left-0 top-[18px] w-4 h-px bg-slate-800"></div>
+
+                              {/* QUARTER TOGGLE */}
+                              <button
                                 onClick={() => toggleGroup(groupKey)}
                                 className={clsx(
-                                    "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors border select-none",
-                                    isGroupExpanded 
-                                        ? "bg-slate-800/80 text-white border-slate-700" 
-                                        : "text-slate-400 hover:text-white hover:bg-slate-800/30 border-transparent"
+                                  "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors border select-none",
+                                  isGroupExpanded
+                                    ? "bg-slate-800/80 text-white border-slate-700"
+                                    : "text-slate-400 hover:text-white hover:bg-slate-800/30 border-transparent",
                                 )}
-                            >
+                              >
                                 <div className="flex items-center gap-2">
-                                    {group.icon}
-                                    {group.label}
+                                  {group.icon}
+                                  {group.label}
                                 </div>
-                                <ChevronRight className={clsx("w-3 h-3 transition-transform", isGroupExpanded ? "rotate-90" : "")} />
-                            </button>
+                                <ChevronRight
+                                  className={clsx(
+                                    "w-3 h-3 transition-transform",
+                                    isGroupExpanded ? "rotate-90" : "",
+                                  )}
+                                />
+                              </button>
 
-                            {/* LEVEL 3: FILES (Animated) */}
-                            <div className={clsx("overflow-hidden transition-all duration-300", isGroupExpanded ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0")}>
+                              {/* LEVEL 3: FILES (Animated) */}
+                              <div
+                                className={clsx(
+                                  "overflow-hidden transition-all duration-300",
+                                  isGroupExpanded
+                                    ? "max-h-[500px] opacity-100 mt-1"
+                                    : "max-h-0 opacity-0",
+                                )}
+                              >
                                 <div className="pl-2 space-y-1 border-l border-slate-800/50 ml-3 my-1">
-                                    {groups[group.key].map(file => (
-                                        <button
-                                            key={file.originalName}
-                                            onClick={() => handleFileClick(file)}
-                                            className={clsx(
-                                                "w-full text-left pl-4 pr-3 py-2 rounded-md text-xs flex items-center justify-between group transition-all relative overflow-hidden",
-                                                activeFile?.originalName === file.originalName 
-                                                ? "bg-blue-600 text-white font-medium shadow-md shadow-blue-900/20" 
-                                                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                                            )}
+                                  {groups[group.key].map((file) => (
+                                    <button
+                                      key={file.originalName}
+                                      onClick={() => handleFileClick(file)}
+                                      className={clsx(
+                                        "w-full text-left pl-4 pr-3 py-2 rounded-md text-xs flex items-center justify-between group transition-all relative overflow-hidden",
+                                        activeFile?.originalName ===
+                                          file.originalName
+                                          ? "bg-blue-600 text-white font-medium shadow-md shadow-blue-900/20"
+                                          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200",
+                                      )}
+                                    >
+                                      <span className="relative z-10">
+                                        {file.period.replace(/\d{4}/, "")}
+                                      </span>
+                                      {/* Frequency Badge */}
+                                      {(file.frequency === "Quarterly" ||
+                                        group.key === "Specials") && (
+                                        <span
+                                          className={clsx(
+                                            "text-[9px] px-1.5 rounded uppercase font-bold",
+                                            activeFile?.originalName ===
+                                              file.originalName
+                                              ? "bg-white/20 text-white"
+                                              : "bg-slate-900 text-slate-500",
+                                          )}
                                         >
-                                            <span className="relative z-10">{file.period.replace(/\d{4}/, '')}</span>
-                                            {/* Frequency Badge */}
-                                            {(file.frequency === 'Quarterly' || group.key === 'Specials') && (
-                                                <span className={clsx("text-[9px] px-1.5 rounded uppercase font-bold", activeFile?.originalName === file.originalName ? "bg-white/20 text-white" : "bg-slate-900 text-slate-500")}>
-                                                    AGG
-                                                </span>
-                                            )}
-                                        </button>
-                                    ))}
+                                          AGG
+                                        </span>
+                                      )}
+                                    </button>
+                                  ))}
                                 </div>
+                              </div>
                             </div>
-                         </div>
-                       );
-                    })}
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
           </div>
 
           {/* Sidebar Footer - Sign Out */}
-          <div className={clsx("p-4 border-t border-slate-800 bg-[#0b1121] transition-all duration-500", isSidebarCollapsed ? "opacity-0" : "opacity-100")}>
-            <button 
+          <div
+            className={clsx(
+              "p-4 border-t border-slate-800 bg-[#0b1121] transition-all duration-500",
+              isSidebarCollapsed ? "opacity-0" : "opacity-100",
+            )}
+          >
+            <button
               onClick={logout}
               className="w-full flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 px-4 py-3 rounded-xl transition-all text-sm font-bold group"
             >
-               <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-               <span>Sign Out</span>
+              <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* 2. THE NEW "GHOST" TRIGGER (Refined) */}
-      {/* Default width is only 8px (w-2) to prevent blocking table data. Expands to 24px (w-6) on hover. */}
+      {/* FIX: Changed top-0 to top-16 to avoid blocking header. Changed z-[100] to z-[50] to stay below Nav (z-70). */}
       {!isPresentationMode && isSidebarCollapsed && (
-        <div 
-          className="absolute left-0 top-0 bottom-0 w-2 hover:w-6 z-[100] group flex items-center justify-center cursor-pointer hover:bg-blue-500/10 transition-all duration-300 delay-100" 
+        <div
+          className="absolute left-0 top-16 bottom-0 w-2 hover:w-6 z-[50] group flex items-center justify-center cursor-pointer hover:bg-blue-500/10 transition-all duration-300 delay-100"
           onClick={() => setIsSidebarCollapsed(false)}
           title="Click to Expand"
         >
-           {/* The Glowing Line */}
-           <div className="h-16 w-0.5 rounded-full bg-slate-600/50 group-hover:bg-blue-500 group-hover:h-24 group-hover:w-1 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-all duration-300"></div>
+          {/* The Glowing Line */}
+          <div className="h-16 w-0.5 rounded-full bg-slate-600/50 group-hover:bg-blue-500 group-hover:h-24 group-hover:w-1 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-all duration-300"></div>
         </div>
       )}
 
@@ -1039,7 +1253,8 @@ const ModelDetail = () => {
       <div className="flex-1 flex flex-col h-full relative bg-slate-950 transition-all duration-500">
         {/* PRESENTATION HEADER */}
         {isPresentationMode && (
-          <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 z-[60] flex items-center justify-between px-8 shadow-2xl">
+          // FIX: Increased z-index to 70 to sit ABOVE the filter toolbar (z-65)
+          <div className="absolute top-0 left-0 w-full h-16 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 z-[70] flex items-center justify-between px-8 shadow-2xl">
             {/* Left: Title Info */}
             <div className="flex items-center gap-4 text-white">
               <div className="flex items-center gap-2">
@@ -1162,7 +1377,8 @@ const ModelDetail = () => {
               onClick={() => {
                 togglePresentation();
                 // Exit Native Browser Fullscreen
-                if (document.fullscreenElement) document.exitFullscreen().catch(e => console.log(e));
+                if (document.fullscreenElement)
+                  document.exitFullscreen().catch((e) => console.log(e));
               }}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 rounded-lg border border-slate-700 transition-colors text-sm font-medium"
             >
@@ -1175,10 +1391,16 @@ const ModelDetail = () => {
         {!isPresentationMode && (
           <div className="h-16 bg-[#0b1121] border-b border-slate-800 flex items-center justify-between px-6 z-[70] transition-all duration-500">
             <div className="flex items-center gap-4">
-              
               {/* NEW: Sidebar Toggle Button (Visible only when collapsed) */}
-              <div className={clsx("transition-all duration-500 ease-out overflow-hidden flex items-center", isSidebarCollapsed ? "w-10 opacity-100 mr-2" : "w-0 opacity-0")}>
-              <button 
+              <div
+                className={clsx(
+                  "transition-all duration-500 ease-out overflow-hidden flex items-center",
+                  isSidebarCollapsed
+                    ? "w-10 opacity-100 mr-2"
+                    : "w-0 opacity-0",
+                )}
+              >
+                <button
                   onClick={() => setIsSidebarCollapsed(false)}
                   className="p-2 text-slate-500 hover:text-white hover:bg-blue-900/20 rounded-lg transition-colors"
                   title="Expand Sidebar"
@@ -1260,7 +1482,9 @@ const ModelDetail = () => {
                 onClick={() => {
                   togglePresentation();
                   // Trigger Native Browser Fullscreen
-                  document.documentElement.requestFullscreen().catch(e => console.log(e));
+                  document.documentElement
+                    .requestFullscreen()
+                    .catch((e) => console.log(e));
                 }}
                 className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
                 title="Enter Full Screen"
@@ -1271,50 +1495,64 @@ const ModelDetail = () => {
               <Bell className="w-5 h-5 text-slate-400 hover:text-white cursor-pointer" />
               {/* --- USER PROFILE DROPDOWN (CLICK ACTIVATED) --- */}
               <div className="relative ml-2" ref={profileRef}>
-                <button 
+                <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className={clsx(
                     "flex items-center gap-3 pl-3 pr-1 py-1 rounded-full transition-all border",
-                    isProfileOpen 
-                      ? "bg-slate-800 border-slate-700" 
-                      : "hover:bg-slate-800/50 border-transparent hover:border-slate-700/50"
+                    isProfileOpen
+                      ? "bg-slate-800 border-slate-700"
+                      : "hover:bg-slate-800/50 border-transparent hover:border-slate-700/50",
                   )}
                 >
                   <div className="text-right hidden lg:block mr-2">
-                    <div className="text-sm font-bold text-white leading-tight tracking-tight">{user?.name || 'Admin User'}</div>
-                    <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-tight mt-0.5">{user?.department || 'Analytics'}</div>
+                    <div className="text-sm font-bold text-white leading-tight tracking-tight">
+                      {user?.name || "Admin User"}
+                    </div>
+                    <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-tight mt-0.5">
+                      {user?.department || "Analytics"}
+                    </div>
                   </div>
-                  
+
                   {/* Avatar */}
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg ring-2 ring-white dark:ring-slate-900 relative">
-                    {user?.name ? user.name.charAt(0) : 'A'}
+                    {user?.name ? user.name.charAt(0) : "A"}
                     <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
                   </div>
-                  
-                  <ChevronDown className={clsx("w-3 h-3 text-slate-500 transition-transform duration-200", isProfileOpen ? "rotate-180 text-white" : "")} />
+
+                  <ChevronDown
+                    className={clsx(
+                      "w-3 h-3 text-slate-500 transition-transform duration-200",
+                      isProfileOpen ? "rotate-180 text-white" : "",
+                    )}
+                  />
                 </button>
 
                 {/* DROPDOWN MENU (Fixed: Dark Aesthetic) */}
                 {isProfileOpen && (
                   <div className="absolute top-full right-0 mt-3 w-72 bg-[#0b1121] border border-slate-700 rounded-2xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-200 z-[100] ring-1 ring-white/10">
-                    
                     {/* User Header */}
                     <div className="px-4 py-4 mb-2 bg-slate-800/30 rounded-xl border border-white/5">
                       <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-                            <span className="font-bold text-sm">{user?.name ? user.name.charAt(0) : 'A'}</span>
-                         </div>
-                         <div className="overflow-hidden">
-                            <div className="text-sm font-bold text-white truncate">{user?.name || 'Guest'}</div>
-                            <div className="text-[10px] text-slate-400 truncate uppercase tracking-wider font-medium">{user?.barclaysId || 'No ID'}</div>
-                         </div>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                          <span className="font-bold text-sm">
+                            {user?.name ? user.name.charAt(0) : "A"}
+                          </span>
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="text-sm font-bold text-white truncate">
+                            {user?.name || "Guest"}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate uppercase tracking-wider font-medium">
+                            {user?.barclaysId || "No ID"}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     {/* Account Settings */}
                     <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-all group">
                       <div className="p-2 rounded-lg bg-slate-800 group-hover:bg-blue-600/20 text-slate-400 group-hover:text-blue-400 transition-colors">
-                         <UserCircle className="w-4 h-4" />
+                        <UserCircle className="w-4 h-4" />
                       </div>
                       <span className="font-medium">Account Settings</span>
                     </button>
@@ -1322,12 +1560,12 @@ const ModelDetail = () => {
                     <div className="h-px bg-slate-800 my-2 mx-2"></div>
 
                     {/* Logout */}
-                    <button 
+                    <button
                       onClick={logout}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-all group"
                     >
                       <div className="p-2 rounded-lg bg-slate-800 group-hover:bg-red-500/20 text-red-400 transition-colors">
-                         <LogOut className="w-4 h-4" />
+                        <LogOut className="w-4 h-4" />
                       </div>
                       <span className="font-bold">Sign Out</span>
                     </button>
@@ -1342,179 +1580,375 @@ const ModelDetail = () => {
         {activeFile ? (
           <>
             {/* Toolbar */}
+            {/* --- PREMIUM DASHBOARD HEADER & FILTER BAR --- */}
+            {/* FIX: Completely hide in Presentation Mode to remove gap/bar */}
             {!isPresentationMode && (
-              // FIX: Increased z-index to 65 so dropdowns sit ABOVE table headers (z-60) but BELOW top nav (z-70)
-              <div className="bg-slate-900/50 border-b border-slate-800 px-4 flex items-end justify-between pt-2 relative z-[65]">
-                {/* 1. SCROLLABLE TABS (Wrapped so they scroll without clipping the dropdowns) */}
-                <div className="flex items-end gap-1 overflow-x-auto custom-scrollbar flex-1 mr-4">
-                  {workbookData?.sheetNames.map((sheet) => (
-                    <button
-                      key={sheet}
-                      onClick={() => handleSheetSwitch(sheet)}
-                      className={clsx(
-                        "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative whitespace-nowrap", // Added whitespace-nowrap
-                        activeSheet === sheet
-                          ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10"
-                          : "text-slate-500 hover:text-slate-300 hover:bg-slate-900",
-                      )}
-                    >
-                      {sheet}
-                      {activeSheet === sheet && (
-                        <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-col relative z-[65]">
+                {/* 1. SHEET TABS (Visible only in Edit Mode & Data View) */}
+                {activeTab === "table" && (
+                  <div className="flex items-end px-4 gap-1 overflow-x-auto custom-scrollbar">
+                    {workbookData?.sheetNames.map((sheet) => (
+                      <button
+                        key={sheet}
+                        onClick={() => handleSheetSwitch(sheet)}
+                        className={clsx(
+                          "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative whitespace-nowrap",
+                          activeSheet === sheet
+                            ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10"
+                            : "text-slate-500 hover:text-slate-300 hover:bg-slate-900",
+                        )}
+                      >
+                        {sheet}
+                        {activeSheet === sheet && (
+                          <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-                {/* 2. FIXED CONTROLS (No overflow clipping here!) */}
-                <div className="pb-2 flex gap-2 items-center flex-shrink-0">
-                  {/* COLUMN MANAGER BUTTON */}
-                  <div className="relative inline-block">
-                    <button
-                      onClick={() => setIsColManagerOpen(!isColManagerOpen)}
-                      className={clsx(
-                        "p-1.5 rounded transition-colors border mr-2",
-                        isColManagerOpen || hiddenColumns.length > 0
-                          ? "bg-blue-600 border-blue-500 text-white"
-                          : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white",
-                      )}
-                      title="Hide/Show Columns"
-                    >
-                      {hiddenColumns.length > 0 ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
+                {/* 2. CONTROL BAR (Tools & Filters) */}
+                <div className="px-4 py-1 flex items-center justify-between gap-4">
+                  {/* LEFT: CONTROLS */}
+                  <div className="flex items-center gap-2 text-slate-400">
+                    {/* A. View Toggles */}
+                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                      <button
+                        onClick={() => setActiveTab("table")}
+                        className={clsx(
+                          "p-1.5 rounded transition-all",
+                          activeTab === "table"
+                            ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10"
+                            : "text-slate-400 hover:text-white",
+                        )}
+                        title="Data Table"
+                      >
+                        <Table className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("charts")}
+                        className={clsx(
+                          "p-1.5 rounded transition-all",
+                          activeTab === "charts"
+                            ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50"
+                            : "text-slate-400 hover:text-white",
+                        )}
+                        title="Visual Charts"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                    {/* DROPDOWN MENU */}
-                    {isColManagerOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[100] p-4">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">
-                          Toggle Visibility
-                        </h4>
-                        <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1">
-                          {sheetData[0]?.map((col, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => toggleColumnVisibility(col)}
-                              className="w-full flex items-center justify-between text-left px-2 py-1.5 hover:bg-slate-800 rounded text-sm text-slate-300"
-                            >
-                              <span className="truncate w-40">
-                                {col || `Col ${idx + 1}`}
+                    {/* B. TABLE SPECIFIC TOOLS */}
+                    {activeTab === "table" && (
+                      <div className="flex items-center gap-2 animate-in fade-in">
+                        <button
+                          onClick={() => setIsMapperOpen(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-lg border border-slate-700 transition-all"
+                        >
+                          <GitMerge className="w-3.5 h-3.5 text-blue-400" /> Map
+                          Columns
+                        </button>
+
+                        <button
+                          onClick={() => setIsRuleModalOpen(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-lg border border-slate-700 transition-all"
+                        >
+                          <Filter className="w-3.5 h-3.5 text-cyan-400" /> Add
+                          Rule
+                        </button>
+
+                        {/* Grid Controls */}
+                        <div className="flex bg-slate-800 rounded-lg border border-slate-700 ml-2 relative">
+                          <button
+                            onClick={handleFreeze}
+                            disabled={selectedColIndex === null}
+                            className={clsx(
+                              "p-1.5 rounded hover:text-white flex items-center gap-1",
+                              frozenColCount > 0 ? "text-blue-400" : "",
+                              selectedColIndex === null &&
+                                "opacity-50 cursor-not-allowed",
+                            )}
+                            title="Freeze Column"
+                          >
+                            <Snowflake className="w-4 h-4" />
+                            {selectedColIndex !== null && (
+                              <span className="text-[10px] font-bold">
+                                {selectedColIndex + 1}
                               </span>
-                              {hiddenColumns.includes(col) ? (
-                                <Square className="w-4 h-4 text-slate-600" />
+                            )}
+                          </button>
+
+                          {/* Column Manager */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsColManagerOpen(!isColManagerOpen);
+                              }}
+                              className={clsx(
+                                "p-1.5 rounded hover:text-white transition-colors",
+                                hiddenColumns.length > 0
+                                  ? "text-amber-500 bg-amber-500/10"
+                                  : "text-slate-400",
+                              )}
+                              title="Hide/Show Columns"
+                            >
+                              {hiddenColumns.length > 0 ? (
+                                <EyeOff className="w-4 h-4" />
                               ) : (
-                                <CheckSquare className="w-4 h-4 text-blue-500" />
+                                <Eye className="w-4 h-4" />
                               )}
                             </button>
-                          ))}
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between">
-                          <button
-                            onClick={() => setHiddenColumns([])}
-                            className="text-xs text-blue-400 hover:text-blue-300"
-                          >
-                            Show All
-                          </button>
-                          <button
-                            onClick={() => setIsColManagerOpen(false)}
-                            className="text-xs text-slate-500 hover:text-slate-300"
-                          >
-                            Close
-                          </button>
+
+                            {/* DROPDOWN MENU */}
+                            {isColManagerOpen && (
+                              <div className="absolute top-full left-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[150] p-4 text-left">
+                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex justify-between items-center">
+                                  <span>Toggle Visibility</span>
+                                  <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
+                                    {hiddenColumns.length} Hidden
+                                  </span>
+                                </h4>
+                                <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1">
+                                  {sheetData[0]?.map((col, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() =>
+                                        toggleColumnVisibility(col)
+                                      }
+                                      className="w-full flex items-center justify-between text-left px-2 py-1.5 hover:bg-slate-800 rounded text-xs text-slate-300 transition-colors"
+                                    >
+                                      <span
+                                        className={clsx(
+                                          "truncate w-40",
+                                          hiddenColumns.includes(col) &&
+                                            "opacity-50 line-through",
+                                        )}
+                                      >
+                                        {col || `Col ${idx + 1}`}
+                                      </span>
+                                      {hiddenColumns.includes(col) ? (
+                                        <Square className="w-3.5 h-3.5 text-slate-600" />
+                                      ) : (
+                                        <CheckSquare className="w-3.5 h-3.5 text-blue-500" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between">
+                                  <button
+                                    onClick={() => setHiddenColumns([])}
+                                    className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                                  >
+                                    Show All
+                                  </button>
+                                  <button
+                                    onClick={() => setIsColManagerOpen(false)}
+                                    className="text-xs text-slate-500 hover:text-slate-300"
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <button
-                    onClick={() => setShowRowNumbers(!showRowNumbers)}
-                    className={clsx(
-                      "p-1.5 rounded transition-colors border",
-                      showRowNumbers
-                        ? "bg-purple-600 border-purple-500 text-white"
-                        : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white",
-                    )}
-                  >
-                    <Ruler className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleFreeze}
-                    disabled={selectedColIndex === null}
-                    className={clsx(
-                      "p-1.5 rounded transition-colors border flex items-center gap-1",
-                      frozenColCount > 0
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "text-slate-400 border-transparent hover:bg-slate-800 hover:text-white",
-                      selectedColIndex === null &&
-                        "opacity-50 cursor-not-allowed",
-                    )}
-                  >
-                    <Snowflake className="w-4 h-4" />
-                    {selectedColIndex !== null && (
-                      <span className="text-[10px] font-bold">
-                        {selectedColIndex + 1}
-                      </span>
-                    )}
-                  </button>
-                  <div className="w-px h-6 bg-slate-700 mx-1"></div>
-                  <button
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className={clsx(
-                      "flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded transition-colors border",
-                      isEditMode
-                        ? "bg-amber-600 border-amber-500 text-white"
-                        : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white",
-                    )}
-                  >
-                    {isEditMode ? (
-                      <>
-                        <Save className="w-3 h-3" />
-                      </>
-                    ) : (
-                      <>
-                        <Edit3 className="w-3 h-3" />
-                      </>
-                    )}
-                  </button>
-                  <div className="w-px h-6 bg-slate-700 mx-1"></div>
-                  <button
-                    onClick={() => setIsRuleModalOpen(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
-                  >
-                    <Filter className="w-3 h-3" /> Add Rule
-                  </button>
+                  {/* RIGHT: GLOBAL FILTERS (Visible only in Edit Mode per request) */}
+                  <div className="flex items-center gap-2 animate-in fade-in">
+                    {/* Active Filter Pills */}
+                    {globalFilters.map((filter, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/30 border border-blue-500/30 rounded-full text-xs font-bold text-blue-200 animate-in fade-in slide-in-from-top-2"
+                      >
+                        <span className="opacity-50 uppercase text-[9px] tracking-wider">
+                          {filter.operator === "==" ? ":" : filter.operator}
+                        </span>
+                        <span>
+                          {filter.col}{" "}
+                          <span className="text-white">{filter.val}</span>
+                        </span>
+                        <button
+                          onClick={() =>
+                            setGlobalFilters((prev) =>
+                              prev.filter((_, idx) => idx !== i),
+                            )
+                          }
+                          className="hover:bg-blue-500/20 rounded-full p-0.5 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
 
-                  <div className="w-px h-6 bg-slate-700 mx-1"></div>
+                    {/* Add Filter Button */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-blue-600 text-xs font-bold text-white rounded-full border border-slate-600 transition-all hover:border-blue-500 shadow-sm"
+                      >
+                        <Filter className="w-3.5 h-3.5" /> Filter{" "}
+                        <Plus className="w-3 h-3 opacity-50" />
+                      </button>
 
-                  {/* VIEW MODE TOGGLE */}
-                  <div className="flex items-center bg-slate-800 rounded p-0.5 border border-slate-700">
-                    <button
-                      onClick={() => setActiveTab("table")}
-                      className={clsx(
-                        "p-1.5 rounded transition-all",
-                        activeTab === "table"
-                          ? "bg-slate-700 text-white shadow-sm ring-1 ring-white/10"
-                          : "text-slate-400 hover:text-white hover:bg-slate-700/50",
+                      {/* Column Selection Dropdown */}
+                      {isFilterMenuOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-[100] animate-in zoom-in-95 text-left">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">
+                            Select Column
+                          </div>
+                          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1">
+                            {sheetData?.[0]?.map((col) => {
+                              const type = getColumnType(col, sheetData);
+                              return (
+                                <button
+                                  key={col}
+                                  onClick={() => {
+                                    setFilterModal({
+                                      isOpen: true,
+                                      column: col,
+                                      type,
+                                    });
+                                    setIsFilterMenuOpen(false);
+                                  }}
+                                  className="w-full text-left flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-800 text-xs text-slate-300 hover:text-white transition-colors"
+                                >
+                                  <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-slate-500">
+                                    {type === "numeric" && (
+                                      <Hash className="w-3 h-3" />
+                                    )}
+                                    {type === "date" && (
+                                      <Calendar className="w-3 h-3" />
+                                    )}
+                                    {type === "string" && (
+                                      <Type className="w-3 h-3" />
+                                    )}
+                                  </div>
+                                  {col}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
-                      title="Table Data"
-                    >
-                      <Table className="w-4 h-4" />
-                    </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- NEW: FILTER CONFIG MODAL (Replaces Prompt) --- */}
+            {filterModal.isOpen && (
+              <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden scale-100">
+                  <div className="px-4 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-blue-500" /> Filter:{" "}
+                      {filterModal.column}
+                    </h3>
                     <button
-                      onClick={() => setActiveTab("charts")}
-                      className={clsx(
-                        "p-1.5 rounded transition-all",
-                        activeTab === "charts"
-                          ? "bg-blue-600 text-white shadow-sm shadow-blue-900/50"
-                          : "text-slate-400 hover:text-white hover:bg-slate-700/50",
-                      )}
-                      title="Visual Charts"
+                      onClick={() =>
+                        setFilterModal({ ...filterModal, isOpen: false })
+                      }
+                      className="text-slate-500 hover:text-white"
                     >
-                      <BarChart3 className="w-4 h-4" />
+                      <X className="w-4 h-4" />
                     </button>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.target);
+                        const operator = formData.get("operator");
+                        const value = formData.get("value");
+
+                        if (value) {
+                          setGlobalFilters((prev) => [
+                            ...prev,
+                            {
+                              col: filterModal.column,
+                              val: value,
+                              operator,
+                              type: filterModal.type,
+                            },
+                          ]);
+                          setFilterModal({ ...filterModal, isOpen: false });
+                        }
+                      }}
+                    >
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">
+                            Condition
+                          </label>
+                          <select
+                            name="operator"
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                          >
+                            {filterModal.type === "numeric" ||
+                            filterModal.type === "date" ? (
+                              <>
+                                <option value=">">Greater than (&gt;)</option>
+                                <option value="<">Less than (&lt;)</option>
+                                <option value=">=">
+                                  Greater or equal (&gt;=)
+                                </option>
+                                <option value="<=">
+                                  Less or equal (&lt;=)
+                                </option>
+                                <option value="==">Equals (=)</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="contains">Contains</option>
+                                <option value="==">Exact Match</option>
+                                <option value="starts">Starts With</option>
+                                <option value="!=">Does Not Equal</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">
+                            Value
+                          </label>
+                          <input
+                            name="value"
+                            autoFocus
+                            type={
+                              filterModal.type === "numeric" ? "number" : "text"
+                            }
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                            placeholder="Enter value..."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-4 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFilterModal({ ...filterModal, isOpen: false })
+                          }
+                          className="px-3 py-2 text-xs font-medium text-slate-400 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-colors"
+                        >
+                          Apply Filter
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               </div>
@@ -1759,7 +2193,7 @@ const ModelDetail = () => {
                                     selectedModel.id,
                                     activeSheet,
                                     manifest,
-                                    activeFile?.originalName
+                                    activeFile?.originalName,
                                   );
 
                                   // --- APPLY FORMATTING ---
@@ -1939,11 +2373,11 @@ const ModelDetail = () => {
                       // User can freely resize/reposition any chart
                       const getDefaultLayout = (index) => {
                         return {
-                          x: (index % 2) * 6, 
-                          y: Math.floor(index / 2) * 7, 
-                          w: 6, 
+                          x: (index % 2) * 6,
+                          y: Math.floor(index / 2) * 7,
+                          w: 6,
                           // FIX: Text widgets default to smaller height (2), others stay large (6)
-                          h: chartConfig.type === 'text' ? 2 : 6, 
+                          h: chartConfig.type === "text" ? 2 : 6,
                         };
                       };
 
@@ -1956,6 +2390,50 @@ const ModelDetail = () => {
                           ? chartConfig.colors[0]
                           : "#3b82f6";
 
+                      // --- LOGIC: APPLY GLOBAL FILTERS ---
+                      let activeRenderData = sheetData; // Default: Current Sheet
+
+                      // 1. Check for Cross-Sheet Source (If you decide to use it later)
+                      const targetSheetName =
+                        chartConfig.sourceSheet || activeSheet;
+                      if (
+                        targetSheetName !== activeSheet &&
+                        parsedData &&
+                        parsedData[targetSheetName]
+                      ) {
+                        activeRenderData = parsedData[targetSheetName];
+                      }
+
+                      // 2. APPLY FILTERS (Context Aware)
+                      // 2. APPLY FILTERS (Context Aware with Operators)
+                      if (
+                        globalFilters.length > 0 &&
+                        activeRenderData &&
+                        activeRenderData.length > 0
+                      ) {
+                        const headers = activeRenderData[0];
+                        const rows = activeRenderData.slice(1);
+
+                        const filteredRows = rows.filter((row) => {
+                          return globalFilters.every((filter) => {
+                            const colIndex = headers.indexOf(filter.col);
+                            if (colIndex === -1) return true; // Ignore if column doesn't exist in this widget
+
+                            const cellValue = row[colIndex];
+
+                            // Use the new Logic Engine
+                            return checkFilterCondition(
+                              cellValue,
+                              filter.operator,
+                              filter.val,
+                              filter.type,
+                            );
+                          });
+                        });
+
+                        activeRenderData = [headers, ...filteredRows];
+                      }
+
                       return (
                         <DraggableWidget
                           key={idx}
@@ -1964,13 +2442,11 @@ const ModelDetail = () => {
                           isEditing={!isPresentationMode}
                           activeColor={activeColor}
                           onDelete={() => setChartToDelete(idx)}
-
                           // NEW: Pass Edit Handler
                           onEdit={() => {
                             setEditingChartIndex(idx);
                             setIsChartBuilderOpen(true);
                           }}
-
                           // --- NEW: ZOOM PROPS ---
                           isZoomed={!!zoomStates[idx]}
                           onResetZoom={() => {
@@ -1981,24 +2457,26 @@ const ModelDetail = () => {
                           // Layout Save
                           // FIX: Use 'updateChart' to save specific properties (layout/colors)
                           // This ensures the position writes to disk and persists after refresh
-                          
+
                           onLayoutChange={(newLayout) => {
-                             updateChart(selectedModel.id, activeSheet, idx, { layout: newLayout });
+                            updateChart(selectedModel.id, activeSheet, idx, {
+                              layout: newLayout,
+                            });
                           }}
-                          
                           onColorChange={(newColor) => {
-                             updateChart(selectedModel.id, activeSheet, idx, { colors: [newColor] });
+                            updateChart(selectedModel.id, activeSheet, idx, {
+                              colors: [newColor],
+                            });
                           }}
                         >
                           {/* FIX: Removed pointer-events-none */}
                           <div className="w-full h-full select-none">
                             <ChartRenderer
                               // FIX: Pass the full config so the palette array (7 colors) is preserved
-                              config={chartConfig} 
-                              
-                              data={sheetData.slice(1).map((row) => {
+                              config={chartConfig}
+                              data={activeRenderData.slice(1).map((row) => {
                                 const obj = {};
-                                sheetData[0].forEach(
+                                activeRenderData[0].forEach(
                                   (key, i) => (obj[key] = row[i]),
                                 );
                                 return obj;
@@ -2041,10 +2519,15 @@ const ModelDetail = () => {
               onClose={() => setIsRuleModalOpen(false)}
               columns={sheetData[0] || []}
               activeSheet={activeSheet}
-              existingRules={manifest?.conditional_formatting?.[selectedModel.id]?.[activeSheet] || []} // Pass existing rules
+              existingRules={
+                manifest?.conditional_formatting?.[selectedModel.id]?.[
+                  activeSheet
+                ] || []
+              } // Pass existing rules
               currentFileName={activeFile?.originalName} // Pass current filename for scoping
-              onSave={(updatedRules) =>
-                saveSheetRules(selectedModel.id, activeSheet, updatedRules) // Use new save function
+              onSave={
+                (updatedRules) =>
+                  saveSheetRules(selectedModel.id, activeSheet, updatedRules) // Use new save function
               }
             />
 
@@ -2055,14 +2538,23 @@ const ModelDetail = () => {
                 setEditingChartIndex(null); // Reset on close
               }}
               columns={sheetData[0] || []}
-              
               // Pass the config if we are editing
-              initialConfig={editingChartIndex !== null ? manifest?.visualizations?.[selectedModel.id]?.[activeSheet]?.[editingChartIndex] : null}
-              
+              initialConfig={
+                editingChartIndex !== null
+                  ? manifest?.visualizations?.[selectedModel.id]?.[
+                      activeSheet
+                    ]?.[editingChartIndex]
+                  : null
+              }
               onSave={(config) => {
                 if (editingChartIndex !== null) {
                   // UPDATE EXISTING CHART
-                  updateChart(selectedModel.id, activeSheet, editingChartIndex, config);
+                  updateChart(
+                    selectedModel.id,
+                    activeSheet,
+                    editingChartIndex,
+                    config,
+                  );
                 } else {
                   // CREATE NEW CHART
                   saveChart(selectedModel.id, activeSheet, config);
