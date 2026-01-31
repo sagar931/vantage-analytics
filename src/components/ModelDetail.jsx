@@ -685,13 +685,34 @@ const ModelDetail = () => {
   const [compactColumns, setCompactColumns] = useState([]);
   const [activeMenuCol, setActiveMenuCol] = useState(null);
 
-  // --- DERIVED DATA: SORTED SHEET ---
+
+  // --- DERIVED DATA: FILTERED & SORTED SHEET ---
   const processedSheetData = useMemo(() => {
     if (!sheetData || sheetData.length === 0) return [];
 
     const headers = sheetData[0];
-    const rows = sheetData.slice(1);
+    let rows = sheetData.slice(1);
 
+    // 1. APPLY GLOBAL FILTERS
+    if (globalFilters.length > 0) {
+      rows = rows.filter((row) => {
+        return globalFilters.every((filter) => {
+          const colIndex = headers.indexOf(filter.col);
+          if (colIndex === -1) return true; // Ignore if column doesn't exist
+
+          const cellValue = row[colIndex];
+          // Use the shared logic engine
+          return checkFilterCondition(
+            cellValue,
+            filter.operator,
+            filter.val,
+            filter.type
+          );
+        });
+      });
+    }
+
+    // 2. APPLY SORTING
     if (sortConfig.key !== null) {
       rows.sort((a, b) => {
         const valA = a[sortConfig.key];
@@ -702,8 +723,9 @@ const ModelDetail = () => {
         return 0;
       });
     }
+
     return [headers, ...rows];
-  }, [sheetData, sortConfig]);
+  }, [sheetData, sortConfig, globalFilters]); // <--- Added globalFilters to dependencies
 
   const toggleCompactMode = (colIndex) => {
     setCompactColumns((prev) =>
