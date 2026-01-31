@@ -473,6 +473,16 @@ const ModelDetail = () => {
   const [globalFilters, setGlobalFilters] = useState([]);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
 
+  // --- NEW: DASHBOARD HEADER STATE ---
+  const [dashboardTitle, setDashboardTitle] = useState("Visual Analysis");
+  const [dashboardSubtitle, setDashboardSubtitle] = useState("");
+  const [isHeaderEditing, setIsHeaderEditing] = useState(false);
+
+  // Reset subtitle when sheet changes (optional, keeps it context-aware)
+  useEffect(() => {
+     setDashboardSubtitle(`Dashboard for ${activeSheet}`);
+  }, [activeSheet]);
+
   // NEW: Advanced Filter Modal State
   const [filterModal, setFilterModal] = useState({
     isOpen: false,
@@ -2472,16 +2482,61 @@ const ModelDetail = () => {
 
               {/* --- VIEW 2: CHART CANVAS --- */}
               {activeTab === "charts" && (
-                <div className="absolute inset-0 overflow-y-auto p-8 custom-scrollbar">
-                  {/* Header */}
-                  <div className="flex justify-between items-center mb-8">
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">
-                        Visual Analysis
-                      </h2>
-                      <p className="text-slate-400 text-sm">
-                        Dashboard for {activeSheet}
-                      </p>
+                // FIX 1: Reduced top padding from p-8 to pt-4 to remove "unrequired space"
+                <div 
+                  className={clsx(
+                    "absolute inset-0 overflow-y-auto px-8 pb-8 custom-scrollbar",
+                    isPresentationMode ? "pt-24" : "pt-4"
+                  )}
+                >
+                   
+                  {/* Header (Editable) */}
+                  <div className="flex justify-between items-end mb-6">
+                    <div className="group">
+                      {isHeaderEditing ? (
+                        <div className="flex flex-col gap-1">
+                          <input 
+                            type="text" 
+                            value={dashboardTitle}
+                            onChange={(e) => setDashboardTitle(e.target.value)}
+                            className="bg-slate-800 border border-blue-500 rounded px-2 py-1 text-2xl font-bold text-white outline-none w-64"
+                            autoFocus
+                          />
+                          <input 
+                            type="text" 
+                            value={dashboardSubtitle}
+                            onChange={(e) => setDashboardSubtitle(e.target.value)}
+                            className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-slate-300 outline-none w-64"
+                          />
+                          <button 
+                            onClick={() => setIsHeaderEditing(false)}
+                            className="mt-2 w-fit flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs font-bold"
+                          >
+                            <CheckSquare className="w-3 h-3" /> Save Header
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <div className="flex items-center gap-3">
+                            <h2 className="text-2xl font-bold text-white tracking-tight">
+                              {dashboardTitle}
+                            </h2>
+                            {/* Pencil Icon (Appears on Hover) */}
+                            {!isPresentationMode && (
+                              <button 
+                                onClick={() => setIsHeaderEditing(true)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-800 rounded text-slate-500 hover:text-blue-400"
+                                title="Edit Title"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-slate-400 text-sm font-medium mt-0.5">
+                            {dashboardSubtitle}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* HIDE BUTTON IN PRESENTATION MODE */}
