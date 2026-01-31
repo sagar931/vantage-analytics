@@ -1063,7 +1063,7 @@ const ModelDetail = () => {
           background: transparent;
         }
       `}</style>
-      
+
       {/* 1. CINEMATIC SIDEBAR (Parallax Slide Animation) */}
       <div
         // FIX: Added 'overflow-hidden' to mask the fixed-width inner content when collapsed
@@ -1708,26 +1708,32 @@ const ModelDetail = () => {
             {/* FIX: Completely hide in Presentation Mode to remove gap/bar */}
             {!isPresentationMode && (
               <div className="flex flex-col relative z-[65]">
-                {/* 1. SHEET TABS (Visible only in Edit Mode & Data View) */}
+                {/* 1. SHEET TABS (Premium Pill Design) */}
                 {activeTab === "table" && (
-                  <div className="flex items-end px-4 gap-1 overflow-x-auto custom-scrollbar">
-                    {workbookData?.sheetNames.map((sheet) => (
-                      <button
-                        key={sheet}
-                        onClick={() => handleSheetSwitch(sheet)}
-                        className={clsx(
-                          "px-5 py-2.5 rounded-t-lg text-sm font-medium transition-all relative whitespace-nowrap",
-                          activeSheet === sheet
-                            ? "bg-slate-950 text-blue-400 border-t border-x border-slate-800 z-10"
-                            : "text-slate-500 hover:text-slate-300 hover:bg-slate-900",
-                        )}
-                      >
-                        {sheet}
-                        {activeSheet === sheet && (
-                          <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full"></div>
-                        )}
-                      </button>
-                    ))}
+                  <div className="flex items-center px-6 py-3 gap-3 overflow-x-auto custom-scrollbar mask-linear-fade">
+                    {workbookData?.sheetNames.map((sheet) => {
+                      const isActive = activeSheet === sheet;
+                      return (
+                        <button
+                          key={sheet}
+                          onClick={() => handleSheetSwitch(sheet)}
+                          className={clsx(
+                            "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-full transition-all duration-300 relative whitespace-nowrap border select-none",
+                            isActive
+                              ? "bg-blue-500/10 text-blue-400 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.25)] translate-y-0"
+                              : "bg-transparent text-slate-500 border-transparent hover:text-slate-200 hover:bg-slate-800/50 hover:border-slate-700"
+                          )}
+                        >
+                          <span className="relative z-10 flex items-center gap-2">
+                            {/* Subtle Dot for Active State */}
+                            {isActive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_#60a5fa] animate-pulse"></span>
+                            )}
+                            {sheet}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
