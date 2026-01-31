@@ -526,35 +526,41 @@ const ModelDetail = () => {
     if (type === "date") {
         let rowDate = null;
         
-        // A. Handle Excel Serial Number (e.g. 45321)
+        // A. Handle Excel Serial Number
         if (typeof rowValue === 'number') {
             rowDate = new Date(Math.round((rowValue - 25569) * 86400 * 1000));
         } 
-        // B. Handle Standard Date String
+        // B. Handle Standard String
         else if (typeof rowValue === 'string') {
             rowDate = new Date(rowValue);
         }
 
         if (rowDate && !isNaN(rowDate.getTime())) {
-            // 1. Text-based matching (e.g., User types "Jan 25")
-            // We check against multiple formats to be friendly
+            // 1. Text-based matching
             if (operator === 'contains' || operator === '==') {
                 const dateStrShort = rowDate.toLocaleDateString("en-US", { month: "short", year: "2-digit" }); // "Jan 25"
                 const dateStrFull = rowDate.toLocaleDateString("en-US"); // "1/31/2026"
-                const dateStrISO = rowDate.toISOString().split('T')[0]; // "2026-01-31"
-                
                 const filterLower = safeFilterVal.toLowerCase();
                 
-                if (dateStrShort.toLowerCase().includes(filterLower)) return true;
-                if (dateStrFull.toLowerCase().includes(filterLower)) return true;
-                if (dateStrISO.includes(filterLower)) return true;
+                return dateStrShort.toLowerCase().includes(filterLower) || 
+                       dateStrFull.toLowerCase().includes(filterLower);
             }
 
-            // 2. Logic-based comparison (>, <, >=)
-            // Try parsing the user input as a date
-            const filterDate = new Date(safeFilterVal);
+            // 2. Logic-based comparison (>, <, >=) for Ranges
+            // FIX: Custom Parser for "MMM YY" (e.g., "Jan 25" -> Jan 1, 2025)
+            let filterDate = new Date(safeFilterVal);
+            
+            // Check for "MMM YY" or "MMM YYYY" format manually if standard parse fails or defaults to current year
+            const mmmYY = /([a-zA-Z]{3})[- ]?('?(\d{2,4}))/;
+            const match = safeFilterVal.match(mmmYY);
+            if (match) {
+                const month = match[1];
+                let year = match[3];
+                if (year.length === 2) year = "20" + year; // Assume 20xx
+                filterDate = new Date(`${month} 1, ${year}`);
+            }
+
             if (!isNaN(filterDate.getTime())) {
-                // Normalize to midnight for accurate comparison
                 const rTime = new Date(rowDate).setHours(0,0,0,0);
                 const fTime = new Date(filterDate).setHours(0,0,0,0);
 
@@ -572,7 +578,6 @@ const ModelDetail = () => {
 
     // --- NUMERIC HANDLING ---
     if (type === "numeric") {
-      // Remove currency symbols/commas
       const cleanRowStr = String(safeRowVal).replace(/[€$£,]/g, "");
       const numRow = Number(cleanRowStr);
       const numFilter = Number(safeFilterVal);
@@ -599,7 +604,6 @@ const ModelDetail = () => {
       case "==": return strRow === strFilter;
       case "!=": return strRow !== strFilter;
       case "starts": return strRow.startsWith(strFilter);
-      case "ends": return strRow.endsWith(strFilter);
       default: return true;
     }
   };
@@ -723,28 +727,49 @@ const ModelDetail = () => {
   const [activeMenuCol, setActiveMenuCol] = useState(null);
 
 
-  // --- DERIVED DATA: FILTERED & SORTED SHEET ---
+// --- DERIVED DATA: FILTERED & SORTED SHEET ---
   const processedSheetData = useMemo(() => {
     if (!sheetData || sheetData.length === 0) return [];
 
     const headers = sheetData[0];
     let rows = sheetData.slice(1);
 
-    // 1. APPLY GLOBAL FILTERS
+    // 1. APPLY SMART GLOBAL FILTERS
     if (globalFilters.length > 0) {
-      rows = rows.filter((row) => {
-        return globalFilters.every((filter) => {
-          const colIndex = headers.indexOf(filter.col);
-          if (colIndex === -1) return true; // Ignore if column doesn't exist
+      
+      // Group filters by Column to apply smart logic (OR for Categories, AND for Ranges)
+      const filtersByCol = globalFilters.reduce((acc, filter) => {
+         if (!acc[filter.col]) acc[filter.col] = [];
+         acc[filter.col].push(filter);
+         return acc;
+      }, {});
 
-          const cellValue = row[colIndex];
-          // Use the shared logic engine
-          return checkFilterCondition(
-            cellValue,
-            filter.operator,
-            filter.val,
-            filter.type
-          );
+      rows = rows.filter((row) => {
+        // A row must match ALL Column groups (Column A AND Column B)
+        return Object.keys(filtersByCol).every(colName => {
+            const colFilters = filtersByCol[colName];
+            const colIndex = headers.indexOf(colName);
+            if (colIndex === -1) return true;
+            
+            const cellValue = row[colIndex];
+
+            // DETECT LOGIC MODE:
+            // If any filter is an inequality (>, <), treat as RANGE (AND).
+            // Example: > 10 AND < 20.
+            const isRangeMode = colFilters.some(f => ['>', '<', '>=', '<='].includes(f.operator));
+
+            if (isRangeMode) {
+               // RANGE: Must match ALL conditions (e.g. Year > 2020 AND Year < 2025)
+               return colFilters.every(filter => 
+                  checkFilterCondition(cellValue, filter.operator, filter.val, filter.type)
+               );
+            } else {
+               // CATEGORY: Must match ANY condition (e.g. "Sales" OR "Marketing")
+               // Exception: "!=" (Not Equal) should typically be AND, but for simplicity, we treat simple equality as OR
+               return colFilters.some(filter => 
+                  checkFilterCondition(cellValue, filter.operator, filter.val, filter.type)
+               );
+            }
         });
       });
     }
@@ -762,8 +787,8 @@ const ModelDetail = () => {
     }
 
     return [headers, ...rows];
-  }, [sheetData, sortConfig, globalFilters]); // <--- Added globalFilters to dependencies
-
+  }, [sheetData, sortConfig, globalFilters]);
+  
   const toggleCompactMode = (colIndex) => {
     setCompactColumns((prev) =>
       prev.includes(colIndex)
