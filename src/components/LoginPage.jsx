@@ -488,55 +488,34 @@ const LogoWithOrbitingRings = ({ isSuccess, hasError }) => {
 // ============================================
 // CORNER ACCENT COMPONENT
 // ============================================
+// ============================================
+// CORNER ACCENT COMPONENT - Rounded Style
+// ============================================
 const CornerAccents = () => (
   <>
-    {/* Top Left */}
-    <div className="absolute top-4 left-4 w-10 h-10">
-      <div 
-        className="absolute top-0 left-0 w-full h-[2px] rounded-full"
-        style={{ background: `linear-gradient(90deg, ${BRAND.primary}60, transparent)` }}
-      />
-      <div 
-        className="absolute top-0 left-0 w-[2px] h-full rounded-full"
-        style={{ background: `linear-gradient(180deg, ${BRAND.primary}60, transparent)` }}
-      />
-    </div>
+    {/* Top Left - Rounded */}
+    <div 
+      className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 rounded-tl-xl"
+      style={{ borderColor: `${BRAND.primary}50` }}
+    />
     
-    {/* Top Right */}
-    <div className="absolute top-4 right-4 w-10 h-10">
-      <div 
-        className="absolute top-0 right-0 w-full h-[2px] rounded-full"
-        style={{ background: `linear-gradient(-90deg, ${BRAND.primary}60, transparent)` }}
-      />
-      <div 
-        className="absolute top-0 right-0 w-[2px] h-full rounded-full"
-        style={{ background: `linear-gradient(180deg, ${BRAND.primary}60, transparent)` }}
-      />
-    </div>
+    {/* Top Right - Rounded */}
+    <div 
+      className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 rounded-tr-xl"
+      style={{ borderColor: `${BRAND.primary}50` }}
+    />
     
-    {/* Bottom Left */}
-    <div className="absolute bottom-4 left-4 w-10 h-10">
-      <div 
-        className="absolute bottom-0 left-0 w-full h-[2px] rounded-full"
-        style={{ background: `linear-gradient(90deg, ${BRAND.primary}60, transparent)` }}
-      />
-      <div 
-        className="absolute bottom-0 left-0 w-[2px] h-full rounded-full"
-        style={{ background: `linear-gradient(0deg, ${BRAND.primary}60, transparent)` }}
-      />
-    </div>
+    {/* Bottom Left - Rounded */}
+    <div 
+      className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 rounded-bl-xl"
+      style={{ borderColor: `${BRAND.primary}50` }}
+    />
     
-    {/* Bottom Right */}
-    <div className="absolute bottom-4 right-4 w-10 h-10">
-      <div 
-        className="absolute bottom-0 right-0 w-full h-[2px] rounded-full"
-        style={{ background: `linear-gradient(-90deg, ${BRAND.primary}60, transparent)` }}
-      />
-      <div 
-        className="absolute bottom-0 right-0 w-[2px] h-full rounded-full"
-        style={{ background: `linear-gradient(0deg, ${BRAND.primary}60, transparent)` }}
-      />
-    </div>
+    {/* Bottom Right - Rounded */}
+    <div 
+      className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 rounded-br-xl"
+      style={{ borderColor: `${BRAND.primary}50` }}
+    />
   </>
 );
 
