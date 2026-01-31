@@ -223,6 +223,8 @@ const PremiumInput = ({
   placeholder, 
   icon: Icon, 
   hasError,
+  onFocus,
+  onBlur,
 }) => {
   const [localFocus, setLocalFocus] = useState(false);
   
@@ -265,8 +267,14 @@ const PremiumInput = ({
             type={type}
             value={value}
             onChange={onChange}
-            onFocus={() => setLocalFocus(true)}
-            onBlur={() => setLocalFocus(false)}
+            onFocus={() => {
+              setLocalFocus(true);
+              onFocus?.();
+            }}
+            onBlur={() => {
+              setLocalFocus(false);
+              onBlur?.();
+            }}
             className={clsx(
               "w-full bg-slate-950/60 backdrop-blur-xl border-2 rounded-xl px-5 py-4 text-white text-sm outline-none transition-all duration-300 placeholder:text-slate-600",
               "hover:bg-slate-900/60",
@@ -552,14 +560,26 @@ const LoginPage = () => {
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
   }, []);
 
+  const [isTiltDisabled, setIsTiltDisabled] = useState(false);
+
   const handleMouseMove = useCallback((e) => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || isTiltDisabled) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
     mouseX.set(x);
     mouseY.set(y);
-  }, [mouseX, mouseY]);
+  }, [mouseX, mouseY, isTiltDisabled]);
+
+  const disableTilt = () => {
+    setIsTiltDisabled(true);
+    mouseX.set(0);
+    mouseY.set(0);
+  };
+
+  const enableTilt = () => {
+    setIsTiltDisabled(false);
+  };
 
   const handleMouseLeave = useCallback(() => {
     mouseX.set(0);
@@ -721,6 +741,8 @@ const LoginPage = () => {
                 placeholder="name@barclays.com"
                 icon={ShieldCheck}
                 hasError={authError}
+                onFocus={disableTilt}
+                onBlur={enableTilt}
               />
               
               <PremiumInput
@@ -731,12 +753,16 @@ const LoginPage = () => {
                 placeholder="••••••••••••"
                 icon={Lock}
                 hasError={authError}
+                onFocus={disableTilt}
+                onBlur={enableTilt}
               />
 
               {/* ========== SUBMIT BUTTON ========== */}
               <motion.button
                 type="submit"
                 disabled={isSubmitting || isSuccess}
+                onMouseEnter={disableTilt}
+                onMouseLeave={enableTilt}
                 className={clsx(
                   "relative w-full font-bold py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 disabled:cursor-not-allowed overflow-hidden mt-6 text-sm",
                   isSuccess
@@ -804,6 +830,8 @@ const LoginPage = () => {
             <div className="mt-8 pt-6 border-t border-white/[0.06] flex flex-col items-center gap-4">
               <motion.button
                 onClick={handleRequestAccess}
+                onMouseEnter={disableTilt}
+                onMouseLeave={enableTilt}
                 className="text-xs text-slate-500 hover:text-white transition-colors flex items-center gap-2 group"
               >
                 <Mail className="w-3.5 h-3.5 group-hover:text-blue-400 transition-colors" />
