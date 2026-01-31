@@ -2197,8 +2197,16 @@ const ModelDetail = () => {
                                       : {}),
                                   }}
                                 >
-                                  <div className="flex items-center justify-between">
-                                    <span>{head || `Col ${i + 1}`}</span>
+                                  <div className="flex items-center justify-between group/header">
+                                    <div className="flex items-center gap-2">
+                                      {/* DATA TYPE ICON (Visible on Hover or Always subtle) */}
+                                      <span className="text-slate-600 group-hover/header:text-blue-400 transition-colors" title={getColumnType(head, sheetData)}>
+                                        {getColumnType(head, sheetData) === "numeric" && <Hash className="w-3 h-3" />}
+                                        {getColumnType(head, sheetData) === "date" && <Calendar className="w-3 h-3" />}
+                                        {getColumnType(head, sheetData) === "string" && <Type className="w-3 h-3" />}
+                                      </span>
+                                      <span>{head || `Col ${i + 1}`}</span>
+                                    </div>
 
                                     {/* SORT INDICATOR */}
                                     {sortConfig.key === i && (
